@@ -1,0 +1,21 @@
+# Maven build target
+target/
+*.class
+
+# IDE files
+.idea/
+*.iml
+.vscode/
+.settings/
+.project
+.classpath
+nbproject/private/
+nbbuild/
+dist/
+
+# SQLite Database generated file
+meeting_room.db
+
+# OS specific files
+.DS_Store
+Thumbs.db
