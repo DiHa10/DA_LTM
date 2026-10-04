@@ -177,6 +177,18 @@ public class ClientHandler implements Runnable {
                     return res;
                 }
 
+                case RELEASE_ROOM_EARLY -> {
+                    int bookingId = Integer.parseInt(request.getData());
+                    boolean isAdmin = currentUser != null && currentUser.isAdmin();
+                    int userId = currentUser != null ? currentUser.getId() : 0;
+                    Response res = bookingService.releaseRoomEarly(bookingId, userId, isAdmin);
+                    if (res.isSuccess()) {
+                        serverManager.log("[TRẢ PHÒNG SỚM] Lịch ID: " + bookingId + " đã hoàn thành và trả phòng sớm!");
+                        serverManager.broadcast(new Response(Response.SUCCESS, "Một phòng họp vừa được trả phòng sớm! Khung giờ đã sẵn sàng cho nhân viên khác đặt.", ActionType.BROADCAST_UPDATE, "SCHEDULE_UPDATED"));
+                    }
+                    return res;
+                }
+
                 default -> {
                     return Response.error("Yêu cầu không được hỗ trợ!");
                 }

@@ -20,6 +20,7 @@ public class ServerManager {
     private ServerSocket serverSocket;
     private final List<ClientHandler> activeClients = new CopyOnWriteArrayList<>();
     private final BookingService bookingService = new BookingService();
+    private com.meeting.server.service.MeetingReminderService reminderService;
     private ExecutorService threadPool;
     private boolean isRunning = false;
 
@@ -41,6 +42,10 @@ public class ServerManager {
 
         log("=== SERVER ĐÃ KHỞI CHẠY TRÊN CỔNG " + port + " ===");
         log("Sẵn sàng tiếp nhận kết nối từ các máy trạm (Client)...");
+
+        // Khởi động luồng dịch vụ tự động nhắc nhở giờ họp qua mạng
+        reminderService = new com.meeting.server.service.MeetingReminderService(this, bookingService);
+        reminderService.start();
 
         // Luồng nền lắng nghe kết nối
         new Thread(() -> {
@@ -66,6 +71,10 @@ public class ServerManager {
         isRunning = false;
 
         log("Đang dừng máy chủ...");
+        if (reminderService != null) {
+            reminderService.stop();
+        }
+
         for (ClientHandler client : activeClients) {
             client.close();
         }

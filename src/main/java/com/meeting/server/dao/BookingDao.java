@@ -138,6 +138,54 @@ public class BookingDao {
         return false;
     }
 
+    /**
+     * Trả phòng sớm: cập nhật end_time về thời điểm hiện tại và đổi status sang COMPLETED.
+     */
+    public boolean releaseRoomEarly(int bookingId, int userId, String actualEndTime, boolean isAdmin) {
+        String sql = isAdmin ?
+                "UPDATE bookings SET end_time = ?, status = 'COMPLETED' WHERE id = ? AND status = 'CONFIRMED'" :
+                "UPDATE bookings SET end_time = ?, status = 'COMPLETED' WHERE id = ? AND user_id = ? AND status = 'CONFIRMED'";
+        try (Connection conn = DatabaseManager.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, actualEndTime);
+            ps.setInt(2, bookingId);
+            if (!isAdmin) {
+                ps.setInt(3, userId);
+            }
+            return ps.executeUpdate() > 0;
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return false;
+    }
+
+    /**
+     * Lấy tất cả các lịch họp CONFIRMED trong ngày để phục vụ Worker nhắc nhở trước giờ họp.
+     */
+    public List<Booking> getUpcomingConfirmedBookings(String date) {
+        List<Booking> list = new ArrayList<>();
+        String sql = """
+            SELECT b.*, r.name as room_name, u.full_name as user_name, u.department
+            FROM bookings b
+            JOIN rooms r ON b.room_id = r.id
+            JOIN users u ON b.user_id = u.id
+            WHERE b.booking_date = ? AND b.status = 'CONFIRMED'
+            ORDER BY b.start_time ASC
+        """;
+        try (Connection conn = DatabaseManager.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, date);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    list.add(extractBooking(rs));
+                }
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return list;
+    }
+
     private Booking extractBooking(ResultSet rs) throws SQLException {
         Booking b = new Booking();
         b.setId(rs.getInt("id"));

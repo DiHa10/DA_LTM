@@ -55,8 +55,8 @@ public class SocketClient {
                 if (line.trim().isEmpty()) continue;
                 Response response = JsonUtil.fromJson(line, Response.class);
                 if (response != null) {
-                    // Nếu là thông báo Broadcast cập nhật từ Server
-                    if (response.getAction() == ActionType.BROADCAST_UPDATE) {
+                    // Nếu là thông báo Broadcast hoặc Nhắc nhở đẩy từ Server
+                    if (response.getAction() == ActionType.BROADCAST_UPDATE || response.getAction() == ActionType.REMINDER_NOTIFICATION) {
                         if (broadcastListener != null) {
                             broadcastListener.accept(response);
                         }

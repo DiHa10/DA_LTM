@@ -62,6 +62,10 @@ public class MainDashboard extends JFrame {
     private JTable tblAdminRooms;
     private DefaultTableModel adminRoomTableModel;
 
+    // Notification Center
+    private final List<String> notificationHistory = new ArrayList<>();
+    private JButton btnNotifications;
+
     // Sidebar buttons
     private JPanel activeNavButton = null;
     private CardLayout cardLayout;
@@ -354,6 +358,20 @@ public class MainDashboard extends JFrame {
         filterCard.add(Box.createHorizontalStrut(10));
         filterCard.add(btnBook);
 
+        btnNotifications = new JButton("\uD83D\uDD14 Th\u00F4ng b\u00E1o (0)");
+        btnNotifications.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 12));
+        btnNotifications.setBackground(INPUT_BG);
+        btnNotifications.setForeground(ACCENT_TERRA);
+        btnNotifications.setFocusPainted(false);
+        btnNotifications.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(BORDER_WARM, 1),
+                new EmptyBorder(6, 12, 6, 12)
+        ));
+        btnNotifications.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        btnNotifications.addActionListener(e -> openNotificationDialog());
+        filterCard.add(Box.createHorizontalStrut(8));
+        filterCard.add(btnNotifications);
+
         JPanel topArea = new JPanel(new BorderLayout(0, 10));
         topArea.setOpaque(false);
         topArea.add(lblPageTitle, BorderLayout.NORTH);
@@ -421,6 +439,19 @@ public class MainDashboard extends JFrame {
         btnCancel.setCursor(new Cursor(Cursor.HAND_CURSOR));
         btnCancel.addActionListener(e -> doCancelSelectedBooking());
         toolBar.add(btnCancel);
+
+        JButton btnEarlyRelease = new JButton("\u2714  Tr\u1EA3 ph\u00F2ng s\u1EDBm (Gi\u1EA3i ph\u00F3ng ph\u00F2ng)");
+        btnEarlyRelease.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 12));
+        btnEarlyRelease.setBackground(new Color(240, 253, 244));
+        btnEarlyRelease.setForeground(new Color(22, 101, 52));
+        btnEarlyRelease.setFocusPainted(false);
+        btnEarlyRelease.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(new Color(187, 247, 208), 1),
+                new EmptyBorder(6, 12, 6, 12)
+        ));
+        btnEarlyRelease.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        btnEarlyRelease.addActionListener(e -> doReleaseSelectedBookingEarly());
+        toolBar.add(btnEarlyRelease);
 
         JPanel topArea = new JPanel(new BorderLayout(0, 10));
         topArea.setOpaque(false);
@@ -590,9 +621,26 @@ public class MainDashboard extends JFrame {
             loadBookingsByDate();
             loadMyBookings();
             loadRooms();
-            JOptionPane.showMessageDialog(this,
-                    "Thông báo từ Server: " + res.getMessage(),
-                    "Cập nhật thời gian thực (Real-time)", JOptionPane.INFORMATION_MESSAGE);
+
+            String time = java.time.LocalTime.now().format(java.time.format.DateTimeFormatter.ofPattern("HH:mm:ss"));
+            String notifText = "[" + time + "] " + res.getMessage();
+            notificationHistory.add(0, notifText);
+            updateNotificationBadge();
+
+            if (res.getAction() == ActionType.REMINDER_NOTIFICATION) {
+                // Phát tiếng beep cảnh báo
+                java.awt.Toolkit.getDefaultToolkit().beep();
+
+                // Hiển thị dialog nhắc nhở nổi bật
+                JOptionPane.showMessageDialog(this,
+                        res.getMessage(),
+                        "\u23F0 NH\u1EAEC NH\u1EDE L\u1ECACH H\u1ECCAP S\u1EAEP DI\u1EC4N RA",
+                        JOptionPane.WARNING_MESSAGE);
+            } else {
+                JOptionPane.showMessageDialog(this,
+                        "Thông báo từ Server: " + res.getMessage(),
+                        "Cập nhật thời gian thực (Real-time)", JOptionPane.INFORMATION_MESSAGE);
+            }
         }));
 
         client.setDisconnectListener(() -> SwingUtilities.invokeLater(() -> {
@@ -602,6 +650,72 @@ public class MainDashboard extends JFrame {
             dispose();
             new LoginForm().setVisible(true);
         }));
+    }
+
+    private void updateNotificationBadge() {
+        if (btnNotifications != null) {
+            btnNotifications.setText("\uD83D\uDD14 Th\u00F4ng b\u00E1o (" + notificationHistory.size() + ")");
+        }
+    }
+
+    private void openNotificationDialog() {
+        JDialog dialog = new JDialog(this, "Trung tâm thông báo & Lịch sử nhắc nhở", true);
+        dialog.setSize(540, 420);
+        dialog.setLocationRelativeTo(this);
+
+        JPanel p = new JPanel(new BorderLayout(10, 10));
+        p.setBackground(BG_WARM);
+        p.setBorder(new EmptyBorder(16, 16, 16, 16));
+
+        JLabel title = new JLabel("\uD83D\uDD14  Danh sách thông báo trong phiên làm việc");
+        title.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 14));
+        title.setForeground(ACCENT_FOREST);
+        p.add(title, BorderLayout.NORTH);
+
+        DefaultListModel<String> model = new DefaultListModel<>();
+        for (String item : notificationHistory) {
+            model.addElement(item);
+        }
+        if (model.isEmpty()) {
+            model.addElement("Chưa có thông báo nào từ Server trong phiên làm việc hiện tại.");
+        }
+
+        JList<String> list = new JList<>(model);
+        list.setBackground(CARD_BG);
+        list.setForeground(TEXT_PRIMARY);
+        list.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        list.setSelectionBackground(new Color(254, 243, 235));
+        list.setSelectionForeground(ACCENT_TERRA);
+        list.setFixedCellHeight(32);
+
+        JScrollPane sp = new JScrollPane(list);
+        sp.setBorder(BorderFactory.createLineBorder(BORDER_WARM, 1));
+        p.add(sp, BorderLayout.CENTER);
+
+        JPanel bottom = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 0));
+        bottom.setOpaque(false);
+
+        JButton btnClear = new JButton("Xóa lịch sử");
+        btnClear.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        btnClear.addActionListener(e -> {
+            notificationHistory.clear();
+            model.clear();
+            model.addElement("Đã xóa tất cả thông báo.");
+            updateNotificationBadge();
+        });
+
+        JButton btnClose = new JButton("Đóng");
+        btnClose.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        btnClose.setBackground(ACCENT_TERRA);
+        btnClose.setForeground(Color.WHITE);
+        btnClose.addActionListener(e -> dialog.dispose());
+
+        bottom.add(btnClear);
+        bottom.add(btnClose);
+        p.add(bottom, BorderLayout.SOUTH);
+
+        dialog.setContentPane(p);
+        dialog.setVisible(true);
     }
 
     private void loadAllData() {
@@ -721,6 +835,45 @@ public class MainDashboard extends JFrame {
                         loadBookingsByDate();
                     } else {
                         String msg = res != null ? res.getMessage() : "Lỗi khi hủy lịch";
+                        JOptionPane.showMessageDialog(this, msg, "Lỗi", JOptionPane.ERROR_MESSAGE);
+                    }
+                });
+            }).start();
+        }
+    }
+
+    private void doReleaseSelectedBookingEarly() {
+        int row = tblMyBookings.getSelectedRow();
+        if (row < 0) {
+            JOptionPane.showMessageDialog(this, "Vui lòng chọn 1 lịch họp trong bảng để trả phòng sớm!", "Thông báo", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
+        int bookingId = (int) myBookingTableModel.getValueAt(row, 0);
+        String roomName = (String) myBookingTableModel.getValueAt(row, 1);
+        String status = (String) myBookingTableModel.getValueAt(row, 5);
+
+        if (!"CONFIRMED".equalsIgnoreCase(status)) {
+            JOptionPane.showMessageDialog(this, "Chỉ có thể trả phòng sớm cho lịch họp đang CONFIRMED (Hiện tại: " + status + ")!", "Thông báo", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
+        int confirm = JOptionPane.showConfirmDialog(this,
+                "Xác nhận cuộc họp tại [" + roomName + "] (Mã: " + bookingId + ") đã hoàn tất?\n" +
+                "Hệ thống sẽ ghi nhận kết thúc ngay bây giờ và giải phóng phòng cho nhân viên khác đặt lịch.",
+                "Xác nhận trả phòng sớm", JOptionPane.YES_NO_OPTION);
+
+        if (confirm == JOptionPane.YES_OPTION) {
+            new Thread(() -> {
+                Request req = new Request(ActionType.RELEASE_ROOM_EARLY, currentUser.getId(), String.valueOf(bookingId));
+                Response res = client.sendRequest(req);
+                SwingUtilities.invokeLater(() -> {
+                    if (res != null && res.isSuccess()) {
+                        JOptionPane.showMessageDialog(this, res.getMessage(), "Thành công", JOptionPane.INFORMATION_MESSAGE);
+                        loadMyBookings();
+                        loadBookingsByDate();
+                    } else {
+                        String msg = res != null ? res.getMessage() : "Lỗi khi trả phòng sớm!";
                         JOptionPane.showMessageDialog(this, msg, "Lỗi", JOptionPane.ERROR_MESSAGE);
                     }
                 });

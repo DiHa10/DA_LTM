@@ -16,7 +16,9 @@ public enum ActionType {
     GET_BOOKINGS_BY_USER,
     BOOK_ROOM,
     CANCEL_BOOKING,
+    RELEASE_ROOM_EARLY, // Trả phòng sớm / Giải phóng phòng
 
-    // Server chủ động broadcast dữ liệu mới tới các Client
-    BROADCAST_UPDATE
+    // Thông báo từ Server đẩy xuống Client (TCP Push)
+    BROADCAST_UPDATE,       // Cập nhật dữ liệu thời gian thực
+    REMINDER_NOTIFICATION  // Nhắc nhở sắp đến giờ họp trước 1 tiếng / 15 phút
 }

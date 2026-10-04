@@ -117,4 +117,23 @@ public class BookingService {
             }
         }
     }
+
+    /**
+     * Trả phòng sớm / Giải phóng phòng để nhân viên khác có thể đặt ngay lập tức.
+     */
+    public Response releaseRoomEarly(int bookingId, int userId, boolean isAdmin) {
+        synchronized (bookingLock) {
+            String currentTime = java.time.LocalTime.now().format(java.time.format.DateTimeFormatter.ofPattern("HH:mm"));
+            boolean success = bookingDao.releaseRoomEarly(bookingId, userId, currentTime, isAdmin);
+            if (success) {
+                return Response.success("Đã trả phòng sớm thành công! Khung giờ đã được giải phóng.");
+            } else {
+                return Response.error("Không thể trả phòng (chỉ áp dụng cho lịch đang CONFIRMED do bạn đặt hoặc bạn là Admin)!");
+            }
+        }
+    }
+
+    public List<Booking> getUpcomingConfirmedBookings(String date) {
+        return bookingDao.getUpcomingConfirmedBookings(date);
+    }
 }
