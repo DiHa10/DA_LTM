@@ -79,8 +79,9 @@ public class LoginForm extends JFrame {
         brandContent.setOpaque(false);
         brandContent.setLayout(new BoxLayout(brandContent, BoxLayout.Y_AXIS));
 
-        JLabel lblIcon = new JLabel("🌿");
-        lblIcon.setFont(new Font("Segoe UI Emoji", Font.PLAIN, 52));
+        JLabel lblIcon = new JLabel("\uD83C\uDF3F");
+        lblIcon.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 52));
+        lblIcon.setForeground(Color.WHITE);
         lblIcon.setAlignmentX(Component.CENTER_ALIGNMENT);
 
         JLabel lblBrand = new JLabel("MEETING ROOM");
@@ -98,8 +99,8 @@ public class LoginForm extends JFrame {
         lblDesc.setForeground(new Color(245, 243, 239, 190));
         lblDesc.setAlignmentX(Component.CENTER_ALIGNMENT);
 
-        JLabel lblBadge = new JLabel("  ⚡ TCP Socket • Thread • Synchronized  ");
-        lblBadge.setFont(new Font("Segoe UI", Font.BOLD, 11));
+        JLabel lblBadge = new JLabel("  \u26A1 TCP Socket \u2022 Thread \u2022 Synchronized  ");
+        lblBadge.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 11));
         lblBadge.setForeground(new Color(245, 243, 239));
         lblBadge.setOpaque(true);
         lblBadge.setBackground(new Color(255, 255, 255, 30));

@@ -63,8 +63,8 @@ public class BookingDialog extends JDialog {
         panel.setBorder(new EmptyBorder(24, 28, 20, 28));
 
         // Header
-        JLabel lblTitle = new JLabel("📝  Đặt Phòng Họp Mới");
-        lblTitle.setFont(new Font("Segoe UI", Font.BOLD, 20));
+        JLabel lblTitle = new JLabel("\uD83D\uDCDD  \u0110\u1EB7t Ph\u00F2ng H\u1ECDp M\u1EDBi");
+        lblTitle.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 20));
         lblTitle.setForeground(TEXT_PRIMARY);
 
         JLabel lblSub = new JLabel("Điền thông tin bên dưới để tạo lịch họp vào hệ thống");

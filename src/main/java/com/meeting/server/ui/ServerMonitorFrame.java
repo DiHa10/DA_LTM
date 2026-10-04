@@ -82,8 +82,8 @@ public class ServerMonitorFrame extends JFrame {
         headerBar.setPreferredSize(new Dimension(0, 62));
         headerBar.setBorder(new EmptyBorder(0, 22, 0, 22));
 
-        JLabel lblTitle = new JLabel("🌿  TCP SERVER MONITOR");
-        lblTitle.setFont(new Font("Segoe UI", Font.BOLD, 18));
+        JLabel lblTitle = new JLabel("\uD83C\uDF3F  TCP SERVER MONITOR");
+        lblTitle.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 18));
         lblTitle.setForeground(Color.WHITE);
 
         JLabel lblSubtitle = new JLabel("Hệ thống quản lý phòng họp qua mạng TCP Socket đa luồng");
@@ -123,7 +123,7 @@ public class ServerMonitorFrame extends JFrame {
         ));
         controlBar.add(txtPort);
 
-        btnStartStop = new JButton("▶  Khởi động Server") {
+        btnStartStop = new JButton("►  Khởi động Server") {
             @Override
             protected void paintComponent(Graphics g) {
                 Graphics2D g2 = (Graphics2D) g.create();
@@ -138,7 +138,7 @@ public class ServerMonitorFrame extends JFrame {
                 super.paintComponent(g);
             }
         };
-        btnStartStop.setFont(new Font("Segoe UI", Font.BOLD, 13));
+        btnStartStop.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 13));
         btnStartStop.setForeground(Color.WHITE);
         btnStartStop.setContentAreaFilled(false);
         btnStartStop.setFocusPainted(false);
@@ -151,7 +151,7 @@ public class ServerMonitorFrame extends JFrame {
         controlBar.add(Box.createHorizontalStrut(18));
 
         lblStatus = new JLabel("● ĐANG DỪNG");
-        lblStatus.setFont(new Font("Segoe UI", Font.BOLD, 14));
+        lblStatus.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 14));
         lblStatus.setForeground(DANGER);
         controlBar.add(lblStatus);
 
@@ -173,8 +173,8 @@ public class ServerMonitorFrame extends JFrame {
 
         JPanel logHeader = new JPanel(new BorderLayout());
         logHeader.setOpaque(false);
-        JLabel lblLogTitle = new JLabel("📡  Nhật ký hoạt động (Server Logs)");
-        lblLogTitle.setFont(new Font("Segoe UI", Font.BOLD, 14));
+        JLabel lblLogTitle = new JLabel("\uD83D\uDCE1  Nh\u1EADt k\u00FD ho\u1EA1t \u0111\u1ED9ng (Server Logs)");
+        lblLogTitle.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 14));
         lblLogTitle.setForeground(ACCENT_FOREST);
         logHeader.add(lblLogTitle, BorderLayout.WEST);
 
@@ -218,8 +218,8 @@ public class ServerMonitorFrame extends JFrame {
 
         JPanel clientHeader = new JPanel(new BorderLayout());
         clientHeader.setOpaque(false);
-        JLabel lblClientTitle = new JLabel("👥  Clients Đang Kết Nối");
-        lblClientTitle.setFont(new Font("Segoe UI", Font.BOLD, 14));
+        JLabel lblClientTitle = new JLabel("\uD83D\uDC65  Danh s\u00E1ch Client k\u1EBFt n\u1ED1i");
+        lblClientTitle.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 14));
         lblClientTitle.setForeground(ACCENT_FOREST);
         clientHeader.add(lblClientTitle, BorderLayout.WEST);
 

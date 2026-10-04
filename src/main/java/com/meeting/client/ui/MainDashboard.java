@@ -99,7 +99,7 @@ public class MainDashboard extends JFrame {
         sidebarHeader.setLayout(new BoxLayout(sidebarHeader, BoxLayout.Y_AXIS));
         sidebarHeader.setBorder(new EmptyBorder(24, 20, 20, 20));
 
-        JLabel lblAvatar = new JLabel(currentUser.isAdmin() ? "👨‍💼" : "👤") {
+        JLabel lblAvatar = new JLabel("\uD83D\uDC64") {
             @Override
             protected void paintComponent(Graphics g) {
                 Graphics2D g2 = (Graphics2D) g.create();
@@ -110,7 +110,11 @@ public class MainDashboard extends JFrame {
                 super.paintComponent(g);
             }
         };
-        lblAvatar.setFont(new Font("Segoe UI Emoji", Font.PLAIN, 28));
+        lblAvatar.setPreferredSize(new Dimension(48, 48));
+        lblAvatar.setMaximumSize(new Dimension(48, 48));
+        lblAvatar.setHorizontalAlignment(SwingConstants.CENTER);
+        lblAvatar.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 26));
+        lblAvatar.setForeground(Color.WHITE);
         lblAvatar.setAlignmentX(Component.LEFT_ALIGNMENT);
 
         JLabel lblUserName = new JLabel(currentUser.getFullName());
@@ -142,8 +146,8 @@ public class MainDashboard extends JFrame {
         menuPanel.add(lblMenuTitle);
         menuPanel.add(Box.createVerticalStrut(8));
 
-        JPanel navSchedule = createNavButton("📅", "Lịch Đặt Phòng", "schedule");
-        JPanel navMyBookings = createNavButton("📋", "Lịch Họp Của Tôi", "mybookings");
+        JPanel navSchedule = createNavButton("\uD83D\uDCC5", "Lịch Đặt Phòng", "schedule");
+        JPanel navMyBookings = createNavButton("\uD83D\uDCCB", "Lịch Họp Của Tôi", "mybookings");
         menuPanel.add(navSchedule);
         menuPanel.add(navMyBookings);
 
@@ -155,7 +159,7 @@ public class MainDashboard extends JFrame {
             lblAdmin.setAlignmentX(Component.LEFT_ALIGNMENT);
             menuPanel.add(lblAdmin);
             menuPanel.add(Box.createVerticalStrut(8));
-            JPanel navAdmin = createNavButton("⚙", "Quản Lý Phòng", "admin");
+            JPanel navAdmin = createNavButton("\u2699", "Quản Lý Phòng", "admin");
             menuPanel.add(navAdmin);
         }
 
@@ -164,7 +168,7 @@ public class MainDashboard extends JFrame {
         sidebarFooter.setOpaque(false);
         sidebarFooter.setBorder(new EmptyBorder(10, 16, 16, 16));
 
-        JButton btnLogout = new JButton("⏻  Đăng xuất");
+        JButton btnLogout = new JButton("Đăng xuất");
         btnLogout.setFont(new Font("Segoe UI", Font.BOLD, 13));
         btnLogout.setBackground(new Color(255, 255, 255, 20));
         btnLogout.setForeground(new Color(254, 202, 202));
@@ -211,7 +215,7 @@ public class MainDashboard extends JFrame {
         lblStatus.setFont(new Font("Segoe UI", Font.PLAIN, 12));
         lblStatus.setForeground(ACCENT_FOREST);
 
-        JLabel lblTech = new JLabel("⚡ TCP Socket + Thread + Synchronized");
+        JLabel lblTech = new JLabel("•  TCP Socket + Thread + Synchronized");
         lblTech.setFont(new Font("Segoe UI", Font.BOLD, 11));
         lblTech.setForeground(TEXT_SECONDARY);
 
@@ -232,7 +236,7 @@ public class MainDashboard extends JFrame {
         navBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
 
         JLabel lbl = new JLabel(icon + "   " + text);
-        lbl.setFont(new Font("Segoe UI", Font.PLAIN, 14));
+        lbl.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 14));
         lbl.setForeground(new Color(245, 243, 239, 200));
         navBtn.add(lbl, BorderLayout.CENTER);
 
@@ -277,7 +281,7 @@ public class MainDashboard extends JFrame {
         JLabel newLabel = (JLabel) navBtn.getClientProperty("label");
         if (newLabel != null) {
             newLabel.setForeground(Color.WHITE);
-            newLabel.setFont(new Font("Segoe UI", Font.BOLD, 14));
+            newLabel.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 14));
         }
     }
 
@@ -327,7 +331,7 @@ public class MainDashboard extends JFrame {
         filterCard.add(createFilterButton("Xem Lịch", this::loadBookingsByDate));
 
         // Nút đặt phòng Terracotta
-        JButton btnBook = new JButton("＋ Đặt Phòng Mới") {
+        JButton btnBook = new JButton("+ Đặt Phòng Mới") {
             @Override
             protected void paintComponent(Graphics g) {
                 Graphics2D g2 = (Graphics2D) g.create();
@@ -403,9 +407,9 @@ public class MainDashboard extends JFrame {
                 new EmptyBorder(10, 14, 10, 14)
         ));
 
-        toolBar.add(createFilterButton("🔄 Làm mới", this::loadMyBookings));
+        toolBar.add(createFilterButton("Làm mới danh sách", this::loadMyBookings));
 
-        JButton btnCancel = new JButton("✕  Hủy lịch họp đã chọn");
+        JButton btnCancel = new JButton("Hủy lịch họp đã chọn");
         btnCancel.setFont(new Font("Segoe UI", Font.BOLD, 12));
         btnCancel.setBackground(new Color(254, 242, 242));
         btnCancel.setForeground(DANGER);
@@ -452,7 +456,7 @@ public class MainDashboard extends JFrame {
                 new EmptyBorder(10, 14, 10, 14)
         ));
 
-        JButton btnAdd = new JButton("＋ Thêm Phòng Mới");
+        JButton btnAdd = new JButton("+ Thêm Phòng Mới");
         btnAdd.setFont(new Font("Segoe UI", Font.BOLD, 12));
         btnAdd.setBackground(ACCENT_FOREST);
         btnAdd.setForeground(Color.WHITE);
@@ -462,9 +466,9 @@ public class MainDashboard extends JFrame {
         btnAdd.addActionListener(e -> doAddRoom());
         toolBar.add(btnAdd);
 
-        toolBar.add(createFilterButton("🔄 Đổi trạng thái (Bảo trì/Sẵn sàng)", this::doToggleRoomStatus));
+        toolBar.add(createFilterButton("Đổi trạng thái (Bảo trì/Sẵn sàng)", this::doToggleRoomStatus));
 
-        JButton btnDel = new JButton("🗑 Xóa Phòng");
+        JButton btnDel = new JButton("Xóa Phòng");
         btnDel.setFont(new Font("Segoe UI", Font.BOLD, 12));
         btnDel.setBackground(new Color(254, 242, 242));
         btnDel.setForeground(DANGER);
