@@ -48,12 +48,19 @@ public class DatabaseManager {
                     start_time TEXT NOT NULL,
                     end_time TEXT NOT NULL,
                     purpose TEXT,
+                    invited_users TEXT,
                     status TEXT DEFAULT 'CONFIRMED',
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     FOREIGN KEY (room_id) REFERENCES rooms(id),
                     FOREIGN KEY (user_id) REFERENCES users(id)
                 );
             """);
+
+            try {
+                stmt.execute("ALTER TABLE bookings ADD COLUMN invited_users TEXT;");
+            } catch (SQLException ignored) {
+                // Đã tồn tại cột
+            }
 
             // 4. Chèn dữ liệu mẫu nếu bảng Users trống
             var rsUsers = stmt.executeQuery("SELECT COUNT(*) FROM users;");

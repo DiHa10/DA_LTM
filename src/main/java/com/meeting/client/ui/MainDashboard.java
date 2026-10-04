@@ -17,6 +17,7 @@ import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.DefaultTableModel;
 import javax.swing.table.JTableHeader;
 import java.awt.*;
+import java.awt.geom.RoundRectangle2D;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.time.LocalDate;
@@ -61,6 +62,13 @@ public class MainDashboard extends JFrame {
     // UI Tab 3: Admin Rooms
     private JTable tblAdminRooms;
     private DefaultTableModel adminRoomTableModel;
+
+    // UI Tab 4: Internal Chat
+    private JPanel pnlChatMessages;
+    private JScrollPane scrollChat;
+    private JTextField txtChatInput;
+    private JButton btnSendChat;
+    private String currentCardName = "schedule";
 
     // Notification Center
     private final List<String> notificationHistory = new ArrayList<>();
@@ -152,8 +160,10 @@ public class MainDashboard extends JFrame {
 
         JPanel navSchedule = createNavButton("\uD83D\uDCC5", "Lịch Đặt Phòng", "schedule");
         JPanel navMyBookings = createNavButton("\uD83D\uDCCB", "Lịch Họp Của Tôi", "mybookings");
+        JPanel navChat = createNavButton("\uD83D\uDCAC", "Kênh Trao Đổi (Chat)", "chat");
         menuPanel.add(navSchedule);
         menuPanel.add(navMyBookings);
+        menuPanel.add(navChat);
 
         if (currentUser.isAdmin()) {
             menuPanel.add(Box.createVerticalStrut(16));
@@ -200,6 +210,7 @@ public class MainDashboard extends JFrame {
 
         contentArea.add(createScheduleTab(), "schedule");
         contentArea.add(createMyBookingsTab(), "mybookings");
+        contentArea.add(createChatTab(), "chat");
         if (currentUser.isAdmin()) {
             contentArea.add(createAdminRoomsTab(), "admin");
         }
@@ -250,6 +261,7 @@ public class MainDashboard extends JFrame {
         navBtn.addMouseListener(new MouseAdapter() {
             @Override
             public void mouseClicked(MouseEvent e) {
+                currentCardName = cardName;
                 setActiveNav(navBtn);
                 cardLayout.show(contentArea, cardName);
             }
@@ -453,6 +465,19 @@ public class MainDashboard extends JFrame {
         btnEarlyRelease.addActionListener(e -> doReleaseSelectedBookingEarly());
         toolBar.add(btnEarlyRelease);
 
+        JButton btnExtend = new JButton("\u23F1  Gia h\u1EA1n gi\u1EDD h\u1ECDp (+30p)");
+        btnExtend.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 12));
+        btnExtend.setBackground(new Color(254, 243, 235));
+        btnExtend.setForeground(ACCENT_TERRA);
+        btnExtend.setFocusPainted(false);
+        btnExtend.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(new Color(254, 215, 195), 1),
+                new EmptyBorder(6, 12, 6, 12)
+        ));
+        btnExtend.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        btnExtend.addActionListener(e -> doExtendSelectedBooking());
+        toolBar.add(btnExtend);
+
         JPanel topArea = new JPanel(new BorderLayout(0, 10));
         topArea.setOpaque(false);
         topArea.add(lblPageTitle, BorderLayout.NORTH);
@@ -525,6 +550,96 @@ public class MainDashboard extends JFrame {
         };
         tblAdminRooms = createStyledTable(adminRoomTableModel);
         panel.add(createStyledScrollPane(tblAdminRooms, null), BorderLayout.CENTER);
+
+        return panel;
+    }
+
+    // ========== TAB 4: INTERNAL CHAT (TCP REAL-TIME) ==========
+    private JPanel createChatTab() {
+        JPanel panel = new JPanel(new BorderLayout(0, 14));
+        panel.setBackground(BG_WARM);
+        panel.setBorder(new EmptyBorder(22, 22, 18, 22));
+
+        // Top Header
+        JPanel topHeader = new JPanel(new BorderLayout(0, 6));
+        topHeader.setOpaque(false);
+
+        JLabel lblPageTitle = new JLabel("K\u00EAnh Trao \u0110\u1ED5i N\u1ED9i B\u1ED9 & Th\u1EA3o Lu\u1EADn (TCP Socket)");
+        lblPageTitle.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 22));
+        lblPageTitle.setForeground(TEXT_PRIMARY);
+
+        JLabel lblSub = new JLabel("Trao đổi thông tin trực tiếp theo thời gian thực (Real-time Broadcast) về công tác chuẩn bị phòng họp, tài liệu, thiết bị.");
+        lblSub.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        lblSub.setForeground(TEXT_SECONDARY);
+
+        topHeader.add(lblPageTitle, BorderLayout.NORTH);
+        topHeader.add(lblSub, BorderLayout.CENTER);
+        panel.add(topHeader, BorderLayout.NORTH);
+
+        // Messages Area (Card giấy mộc)
+        pnlChatMessages = new JPanel();
+        pnlChatMessages.setLayout(new BoxLayout(pnlChatMessages, BoxLayout.Y_AXIS));
+        pnlChatMessages.setBackground(CARD_BG);
+        pnlChatMessages.setBorder(new EmptyBorder(16, 16, 16, 16));
+
+        // Tin nhắn chào mừng mặc định
+        JLabel lblWelcome = new JLabel("<html><i style='color:#78716C;'>=== Kênh trao đổi nội bộ đã kết nối máy chủ TCP. Bắt đầu nhắn tin trao đổi bên dưới... ===</i></html>");
+        lblWelcome.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        lblWelcome.setAlignmentX(Component.LEFT_ALIGNMENT);
+        pnlChatMessages.add(lblWelcome);
+        pnlChatMessages.add(Box.createVerticalStrut(14));
+
+        scrollChat = new JScrollPane(pnlChatMessages);
+        scrollChat.setBackground(CARD_BG);
+        scrollChat.getViewport().setBackground(CARD_BG);
+        scrollChat.setBorder(BorderFactory.createLineBorder(BORDER_WARM, 1));
+        scrollChat.getVerticalScrollBar().setUnitIncrement(14);
+        panel.add(scrollChat, BorderLayout.CENTER);
+
+        // Bottom Input Bar
+        JPanel inputBar = new JPanel(new BorderLayout(10, 0));
+        inputBar.setBackground(CARD_BG);
+        inputBar.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(BORDER_WARM, 1),
+                new EmptyBorder(10, 14, 10, 14)
+        ));
+
+        txtChatInput = new JTextField();
+        txtChatInput.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        txtChatInput.setBackground(INPUT_BG);
+        txtChatInput.setForeground(TEXT_PRIMARY);
+        txtChatInput.setCaretColor(ACCENT_TERRA);
+        txtChatInput.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(BORDER_WARM, 1),
+                new EmptyBorder(8, 12, 8, 12)
+        ));
+        txtChatInput.addActionListener(e -> doSendChatMessage());
+
+        btnSendChat = new JButton("G\u1EEDi \u27A4") {
+            @Override
+            protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                GradientPaint gp = new GradientPaint(0, 0, GRADIENT_START, getWidth(), 0, GRADIENT_END);
+                g2.setPaint(gp);
+                g2.fill(new RoundRectangle2D.Double(0, 0, getWidth(), getHeight(), 8, 8));
+                g2.dispose();
+                super.paintComponent(g);
+            }
+        };
+        btnSendChat.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 13));
+        btnSendChat.setForeground(Color.WHITE);
+        btnSendChat.setContentAreaFilled(false);
+        btnSendChat.setFocusPainted(false);
+        btnSendChat.setBorderPainted(false);
+        btnSendChat.setOpaque(false);
+        btnSendChat.setPreferredSize(new Dimension(100, 38));
+        btnSendChat.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        btnSendChat.addActionListener(e -> doSendChatMessage());
+
+        inputBar.add(txtChatInput, BorderLayout.CENTER);
+        inputBar.add(btnSendChat, BorderLayout.EAST);
+        panel.add(inputBar, BorderLayout.SOUTH);
 
         return panel;
     }
@@ -618,6 +733,16 @@ public class MainDashboard extends JFrame {
     // ========== NETWORK & DATA ==========
     private void setupBroadcastListener() {
         client.setBroadcastListener(res -> SwingUtilities.invokeLater(() -> {
+            if (res.getAction() == ActionType.CHAT_BROADCAST) {
+                try {
+                    com.meeting.common.model.ChatMessage chat = JsonUtil.fromJson(res.getData(), com.meeting.common.model.ChatMessage.class);
+                    if (chat != null) {
+                        appendChatMessage(chat);
+                    }
+                } catch (Exception ignored) {}
+                return;
+            }
+
             loadBookingsByDate();
             loadMyBookings();
             loadRooms();
@@ -636,10 +761,15 @@ public class MainDashboard extends JFrame {
                         res.getMessage(),
                         "\u23F0 NH\u1EAEC NH\u1EDE L\u1ECACH H\u1ECCAP S\u1EAEP DI\u1EC4N RA",
                         JOptionPane.WARNING_MESSAGE);
-            } else {
+            } else if (res.getAction() == ActionType.INVITATION_NOTIFICATION) {
+                // Phát tiếng beep cảnh báo
+                java.awt.Toolkit.getDefaultToolkit().beep();
+
+                // Hiển thị thông báo nhận lời mời tham gia họp
                 JOptionPane.showMessageDialog(this,
-                        "Thông báo từ Server: " + res.getMessage(),
-                        "Cập nhật thời gian thực (Real-time)", JOptionPane.INFORMATION_MESSAGE);
+                        res.getMessage(),
+                        "\uD83D\uDCE9 L\u1EDCI M\u1EDEI THAM GIA H\u1ECCAP M\u1EDAI (TCP ALERT)",
+                        JOptionPane.INFORMATION_MESSAGE);
             }
         }));
 
@@ -879,6 +1009,127 @@ public class MainDashboard extends JFrame {
                 });
             }).start();
         }
+    }
+
+    private void doExtendSelectedBooking() {
+        int row = tblMyBookings.getSelectedRow();
+        if (row < 0) {
+            JOptionPane.showMessageDialog(this, "Vui lòng chọn 1 lịch họp trong bảng để gia hạn thêm giờ!", "Thông báo", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
+        int bookingId = (int) myBookingTableModel.getValueAt(row, 0);
+        String roomName = (String) myBookingTableModel.getValueAt(row, 1);
+        String timeSlot = (String) myBookingTableModel.getValueAt(row, 3);
+        String status = (String) myBookingTableModel.getValueAt(row, 5);
+
+        if (!"CONFIRMED".equalsIgnoreCase(status)) {
+            JOptionPane.showMessageDialog(this, "Chỉ có thể gia hạn cho lịch họp đang CONFIRMED (Hiện tại: " + status + ")!", "Thông báo", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
+        int confirm = JOptionPane.showConfirmDialog(this,
+                "Bạn có muốn gia hạn thêm 30 phút cho cuộc họp tại [" + roomName + "] (Hiện tại: " + timeSlot + ") không?\n" +
+                "Hệ thống sẽ kiểm tra xem khung giờ kế tiếp có ai đặt phòng chưa để đảm bảo an toàn tranh chấp.",
+                "Xác nhận gia hạn giờ họp (+30 phút)", JOptionPane.YES_NO_OPTION);
+
+        if (confirm == JOptionPane.YES_OPTION) {
+            new Thread(() -> {
+                Request req = new Request(ActionType.EXTEND_BOOKING, currentUser.getId(), String.valueOf(bookingId));
+                Response res = client.sendRequest(req);
+                SwingUtilities.invokeLater(() -> {
+                    if (res != null) {
+                        if (res.isSuccess()) {
+                            JOptionPane.showMessageDialog(this, res.getMessage(), "Gia hạn thành công", JOptionPane.INFORMATION_MESSAGE);
+                            loadMyBookings();
+                            loadBookingsByDate();
+                        } else if (res.isConflict()) {
+                            JOptionPane.showMessageDialog(this, res.getMessage(), "CẢNH BÁO: TRÙNG LỊCH PHÒNG HỌP", JOptionPane.WARNING_MESSAGE);
+                        } else {
+                            JOptionPane.showMessageDialog(this, res.getMessage(), "Lỗi", JOptionPane.ERROR_MESSAGE);
+                        }
+                    } else {
+                        JOptionPane.showMessageDialog(this, "Không nhận được phản hồi từ Server!", "Lỗi", JOptionPane.ERROR_MESSAGE);
+                    }
+                });
+            }).start();
+        }
+    }
+
+    private void doSendChatMessage() {
+        if (txtChatInput == null) return;
+        String text = txtChatInput.getText().trim();
+        if (text.isEmpty()) return;
+
+        txtChatInput.setText("");
+        new Thread(() -> {
+            Request req = new Request(ActionType.SEND_CHAT_MESSAGE, currentUser.getId(), text);
+            client.sendRequest(req);
+        }).start();
+    }
+
+    private void appendChatMessage(com.meeting.common.model.ChatMessage chat) {
+        if (pnlChatMessages == null) return;
+        SwingUtilities.invokeLater(() -> {
+            boolean isMe = currentUser != null && currentUser.getFullName().equalsIgnoreCase(chat.getSenderName());
+
+            JPanel bubbleCard = new JPanel(new BorderLayout(6, 4));
+            bubbleCard.setMaximumSize(new Dimension(850, 75));
+            bubbleCard.setAlignmentX(Component.LEFT_ALIGNMENT);
+
+            // Header line
+            JPanel headerLine = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
+            headerLine.setOpaque(false);
+
+            String senderTitle = isMe ? "Bạn (" + chat.getDepartment() + ")" : chat.getSenderName() + " (" + chat.getDepartment() + ")";
+            JLabel lblSender = new JLabel(senderTitle);
+            lblSender.setFont(new Font("Segoe UI", Font.BOLD, 12));
+            lblSender.setForeground(isMe ? ACCENT_TERRA : ACCENT_FOREST);
+
+            JLabel lblTime = new JLabel(chat.getTimestamp());
+            lblTime.setFont(new Font("Segoe UI", Font.PLAIN, 11));
+            lblTime.setForeground(TEXT_SECONDARY);
+
+            headerLine.add(lblSender);
+            headerLine.add(lblTime);
+
+            // Message Bubble
+            JPanel bubble = new JPanel(new BorderLayout());
+            bubble.setBackground(isMe ? new Color(254, 243, 235) : new Color(245, 243, 239));
+            bubble.setBorder(BorderFactory.createCompoundBorder(
+                    BorderFactory.createLineBorder(isMe ? new Color(254, 215, 195) : BORDER_WARM, 1),
+                    new EmptyBorder(8, 12, 8, 12)
+            ));
+
+            JLabel lblMsg = new JLabel("<html><body style='width: 650px;'>" + escapeHtml(chat.getContent()) + "</body></html>");
+            lblMsg.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+            lblMsg.setForeground(TEXT_PRIMARY);
+            bubble.add(lblMsg, BorderLayout.CENTER);
+
+            bubbleCard.setOpaque(false);
+            bubbleCard.add(headerLine, BorderLayout.NORTH);
+            bubbleCard.add(bubble, BorderLayout.CENTER);
+
+            pnlChatMessages.add(bubbleCard);
+            pnlChatMessages.add(Box.createVerticalStrut(10));
+            pnlChatMessages.revalidate();
+            pnlChatMessages.repaint();
+
+            // Auto scroll down
+            SwingUtilities.invokeLater(() -> {
+                if (scrollChat != null) {
+                    JScrollBar vertical = scrollChat.getVerticalScrollBar();
+                    vertical.setValue(vertical.getMaximum());
+                }
+            });
+        });
+    }
+
+    private String escapeHtml(String text) {
+        if (text == null) return "";
+        return text.replace("&", "&amp;")
+                   .replace("<", "&lt;")
+                   .replace(">", "&gt;");
     }
 
     private void doAddRoom() {

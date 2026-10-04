@@ -100,6 +100,17 @@ public class ServerManager {
         }
     }
 
+    public boolean sendToUser(int userId, Response response) {
+        boolean sent = false;
+        for (ClientHandler client : activeClients) {
+            if (client.getCurrentUser() != null && client.getCurrentUser().getId() == userId) {
+                client.sendResponse(response);
+                sent = true;
+            }
+        }
+        return sent;
+    }
+
     public void removeClient(ClientHandler handler) {
         activeClients.remove(handler);
         updateClientList();

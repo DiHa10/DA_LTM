@@ -55,8 +55,11 @@ public class SocketClient {
                 if (line.trim().isEmpty()) continue;
                 Response response = JsonUtil.fromJson(line, Response.class);
                 if (response != null) {
-                    // Nếu là thông báo Broadcast hoặc Nhắc nhở đẩy từ Server
-                    if (response.getAction() == ActionType.BROADCAST_UPDATE || response.getAction() == ActionType.REMINDER_NOTIFICATION) {
+                    // Nếu là thông báo Broadcast, Nhắc nhở, Lời mời họp hoặc Tin nhắn Chat đẩy từ Server
+                    if (response.getAction() == ActionType.BROADCAST_UPDATE 
+                            || response.getAction() == ActionType.REMINDER_NOTIFICATION
+                            || response.getAction() == ActionType.INVITATION_NOTIFICATION
+                            || response.getAction() == ActionType.CHAT_BROADCAST) {
                         if (broadcastListener != null) {
                             broadcastListener.accept(response);
                         }

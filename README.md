@@ -13,16 +13,22 @@
    - Server mở `ServerSocket` tại cổng `8888`.
    - Mỗi Client kết nối tạo một `ClientHandler` chạy trên Thread độc lập.
    - Dữ liệu trao đổi chuẩn hóa dạng JSON (Gson).
-2. **Cơ chế đồng bộ `synchronized` chống đặt trùng lịch:**
+2. **Cơ chế đồng bộ `synchronized` chống đặt trùng lịch & Gia hạn phòng:**
    - Khi có nhiều nhân viên gửi yêu cầu đặt cùng 1 phòng vào cùng 1 khung giờ cùng một lúc (Race Condition), khối `synchronized` trong [BookingService.java](file:///d:/NetBeansProjects/DA_LTM/src/main/java/com/meeting/server/service/BookingService.java) sẽ khóa critical section.
    - **Chỉ 1 nhân viên đầu tiên đặt thành công**, các yêu cầu sau sẽ bị chặn lại kèm thông báo xung đột lịch chi tiết.
-3. **Cập nhật thời gian thực (Real-time Broadcast):**
-   - Khi bất kỳ ai đặt hoặc hủy phòng, Server lập tức phát thanh (broadcast) đến tất cả các Client đang mở để tự động làm mới lịch họp mà không cần bấm F5.
-4. **Cơ chế chống đăng nhập trùng lặp (Anti-duplicate Login):**
+   - **Gia hạn giờ họp (+30 phút)**: Kiểm tra xung đột khung giờ nới rộng theo thời gian thực dưới khối `synchronized`.
+3. **Mời đồng nghiệp tham gia họp qua mạng TCP (Real-time TCP Push Notification):**
+   - Khi tạo lịch họp, người đặt có thể tích chọn các đồng nghiệp cần mời.
+   - Server phân tích danh sách và gửi thông báo trực tiếp qua socket (`INVITATION_NOTIFICATION`) tới máy trạm của đồng nghiệp kèm âm thanh báo động.
+4. **Kênh Chat nhanh nội bộ TCP (In-App Quick Chat Broadcast):**
+   - Kênh trao đổi nội bộ thời gian thực giữa các máy trạm nhân viên để phối hợp công tác chuẩn bị phòng họp, trao đổi tài liệu và thiết bị trực tiếp qua TCP Socket mà không cần dùng ứng dụng bên ngoài.
+5. **Trả phòng sớm & Giải phóng lịch họp (Early Release):**
+   - Nút trả phòng sớm giúp hoàn thành cuộc họp ngay khi xong việc và mở lại khung giờ cho các nhân viên khác đặt ngay lập tức.
+6. **Nhắc nhở tự động trước giờ họp 60 phút và 15 phút (Background Worker):**
+   - Luồng chạy ngầm trên Server [MeetingReminderService.java](file:///d:/NetBeansProjects/DA_LTM/src/main/java/com/meeting/server/service/MeetingReminderService.java) quét lịch định kỳ và chủ động gửi thông báo TCP Push tới máy khách.
+7. **Cơ chế chống đăng nhập trùng lặp (Anti-duplicate Login):**
    - Khóa đồng bộ `synchronized` trên Server kiểm tra danh sách phiên đang hoạt động.
-   - Khi 1 tài khoản đã online ở Client A, nếu ai đó cố tình đăng nhập tài khoản này ở Client B thì Server sẽ lập tức từ chối và cảnh báo tài khoản đang online ở thiết bị khác.
-5. **Hỗ trợ kiểm thử đa luồng độc lập:**
-   - Đi kèm script [ConcurrencySimulationTest.java](file:///d:/NetBeansProjects/DA_LTM/src/main/java/com/meeting/test/ConcurrencySimulationTest.java) có thể chạy kiểm thử tải tự động 10 luồng khi cần.
+   - Khi 1 tài khoản đã online ở Client A, nếu ai đó cố tình đăng nhập tài khoản này ở Client B thì Server sẽ lập tức từ chối.
 
 ---
 

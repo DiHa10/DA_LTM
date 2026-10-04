@@ -15,7 +15,9 @@ import java.awt.*;
 import java.awt.geom.RoundRectangle2D;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.List;
+import com.google.gson.reflect.TypeToken;
 
 public class BookingDialog extends JDialog {
     private final SocketClient client;
@@ -28,6 +30,8 @@ public class BookingDialog extends JDialog {
     private JComboBox<String> cboStartTime;
     private JComboBox<String> cboEndTime;
     private JTextField txtPurpose;
+    private JPanel pnlColleagues;
+    private final List<JCheckBox> colleagueCheckBoxes = new ArrayList<>();
     private JButton btnSubmit;
     private JButton btnCancel;
 
@@ -51,10 +55,11 @@ public class BookingDialog extends JDialog {
         this.onSuccessCallback = onSuccessCallback;
 
         initUI(initialDate);
+        loadColleagues();
     }
 
     private void initUI(String initialDate) {
-        setSize(500, 480);
+        setSize(530, 620);
         setResizable(false);
         setLocationRelativeTo(getParent());
 
@@ -133,6 +138,23 @@ public class BookingDialog extends JDialog {
         // 4. Mục đích
         txtPurpose = createStyledField("Họp dự án");
         formCard.add(createFormRow("Mục đích cuộc họp", txtPurpose));
+        formCard.add(Box.createVerticalStrut(10));
+
+        // 5. Mời đồng nghiệp tham gia
+        pnlColleagues = new JPanel();
+        pnlColleagues.setLayout(new BoxLayout(pnlColleagues, BoxLayout.Y_AXIS));
+        pnlColleagues.setBackground(INPUT_BG);
+        JLabel lblLoading = new JLabel("Đang tải danh sách nhân viên...");
+        lblLoading.setFont(new Font("Segoe UI", Font.ITALIC, 11));
+        lblLoading.setForeground(TEXT_SECONDARY);
+        pnlColleagues.add(lblLoading);
+
+        JScrollPane scrollColleagues = new JScrollPane(pnlColleagues);
+        scrollColleagues.setPreferredSize(new Dimension(460, 80));
+        scrollColleagues.setMaximumSize(new Dimension(500, 80));
+        scrollColleagues.setBorder(BorderFactory.createLineBorder(BORDER_WARM, 1));
+        scrollColleagues.getVerticalScrollBar().setUnitIncrement(10);
+        formCard.add(createFormRow("Mời đồng nghiệp tham gia họp (TCP Real-time Alert)", scrollColleagues));
 
         panel.add(formCard, BorderLayout.CENTER);
 
@@ -256,6 +278,23 @@ public class BookingDialog extends JDialog {
         booking.setEndTime(endTime);
         booking.setPurpose(purpose);
 
+        // Thu thập danh sách đồng nghiệp được mời
+        List<String> invitedIds = new ArrayList<>();
+        List<String> invitedNames = new ArrayList<>();
+        for (JCheckBox cb : colleagueCheckBoxes) {
+            if (cb.isSelected()) {
+                invitedIds.add(String.valueOf(cb.getClientProperty("userId")));
+                User u = (User) cb.getClientProperty("userObj");
+                if (u != null) {
+                    invitedNames.add(u.getFullName());
+                }
+            }
+        }
+        if (!invitedIds.isEmpty()) {
+            booking.setInvitedUsers(String.join(",", invitedIds));
+            booking.setInvitedUserNames(String.join(", ", invitedNames));
+        }
+
         btnSubmit.setEnabled(false);
         btnSubmit.setText("Đang gửi...");
 
@@ -269,11 +308,12 @@ public class BookingDialog extends JDialog {
 
                 if (res != null) {
                     if (res.isSuccess()) {
+                        String inviteExtra = !invitedNames.isEmpty() ? "\n• Đã gửi thông báo mời tới: " + String.join(", ", invitedNames) : "";
                         JOptionPane.showMessageDialog(BookingDialog.this,
                                 "Chúc mừng! Bạn đã đặt phòng thành công:\n" +
                                         "• Phòng: " + selected.room.getName() + "\n" +
                                         "• Ngày: " + date + "\n" +
-                                        "• Thời gian: " + startTime + " - " + endTime,
+                                        "• Thời gian: " + startTime + " - " + endTime + inviteExtra,
                                 "Thành công", JOptionPane.INFORMATION_MESSAGE);
                         if (onSuccessCallback != null) {
                             onSuccessCallback.run();
@@ -294,6 +334,42 @@ public class BookingDialog extends JDialog {
                             "Lỗi", JOptionPane.ERROR_MESSAGE);
                 }
             });
+        }).start();
+    }
+
+    private void loadColleagues() {
+        new Thread(() -> {
+            Request req = new Request(ActionType.GET_ALL_USERS, currentUser.getId(), null);
+            Response res = client.sendRequest(req);
+            if (res != null && res.isSuccess()) {
+                List<User> allUsers = JsonUtil.fromJson(res.getData(), new TypeToken<List<User>>() {}.getType());
+                SwingUtilities.invokeLater(() -> {
+                    pnlColleagues.removeAll();
+                    colleagueCheckBoxes.clear();
+                    if (allUsers != null) {
+                        for (User u : allUsers) {
+                            if (u.getId() != currentUser.getId()) {
+                                JCheckBox cb = new JCheckBox(u.getFullName() + " (" + u.getDepartment() + ")");
+                                cb.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+                                cb.setBackground(INPUT_BG);
+                                cb.setForeground(TEXT_PRIMARY);
+                                cb.putClientProperty("userId", u.getId());
+                                cb.putClientProperty("userObj", u);
+                                colleagueCheckBoxes.add(cb);
+                                pnlColleagues.add(cb);
+                            }
+                        }
+                    }
+                    if (colleagueCheckBoxes.isEmpty()) {
+                        JLabel lblEmpty = new JLabel("Không tìm thấy đồng nghiệp khác");
+                        lblEmpty.setFont(new Font("Segoe UI", Font.ITALIC, 11));
+                        lblEmpty.setForeground(TEXT_SECONDARY);
+                        pnlColleagues.add(lblEmpty);
+                    }
+                    pnlColleagues.revalidate();
+                    pnlColleagues.repaint();
+                });
+            }
         }).start();
     }
 

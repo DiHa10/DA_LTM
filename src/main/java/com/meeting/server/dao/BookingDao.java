@@ -94,8 +94,8 @@ public class BookingDao {
 
     public boolean insertBooking(Booking booking) {
         String sql = """
-            INSERT INTO bookings (room_id, user_id, booking_date, start_time, end_time, purpose, status)
-            VALUES (?, ?, ?, ?, ?, ?, 'CONFIRMED')
+            INSERT INTO bookings (room_id, user_id, booking_date, start_time, end_time, purpose, invited_users, status)
+            VALUES (?, ?, ?, ?, ?, ?, ?, 'CONFIRMED')
         """;
         try (Connection conn = DatabaseManager.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
@@ -105,6 +105,7 @@ public class BookingDao {
             ps.setString(4, booking.getStartTime());
             ps.setString(5, booking.getEndTime());
             ps.setString(6, booking.getPurpose());
+            ps.setString(7, booking.getInvitedUsers());
 
             int rows = ps.executeUpdate();
             if (rows > 0) {
@@ -186,6 +187,79 @@ public class BookingDao {
         return list;
     }
 
+    public Booking getBookingById(int id) {
+        String sql = """
+            SELECT b.*, r.name as room_name, u.full_name as user_name, u.department
+            FROM bookings b
+            JOIN rooms r ON b.room_id = r.id
+            JOIN users u ON b.user_id = u.id
+            WHERE b.id = ?
+        """;
+        try (Connection conn = DatabaseManager.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, id);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return extractBooking(rs);
+                }
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
+
+    public boolean extendBooking(int bookingId, int userId, String newEndTime, boolean isAdmin) {
+        String sql = isAdmin ?
+                "UPDATE bookings SET end_time = ? WHERE id = ? AND status = 'CONFIRMED'" :
+                "UPDATE bookings SET end_time = ? WHERE id = ? AND user_id = ? AND status = 'CONFIRMED'";
+        try (Connection conn = DatabaseManager.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, newEndTime);
+            ps.setInt(2, bookingId);
+            if (!isAdmin) {
+                ps.setInt(3, userId);
+            }
+            return ps.executeUpdate() > 0;
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return false;
+    }
+
+    public Booking findOverlappingBookingExcept(int roomId, String date, String newStartTime, String newEndTime, int excludeBookingId) {
+        String sql = """
+            SELECT b.*, r.name as room_name, u.full_name as user_name, u.department
+            FROM bookings b
+            JOIN rooms r ON b.room_id = r.id
+            JOIN users u ON b.user_id = u.id
+            WHERE b.room_id = ? 
+              AND b.booking_date = ? 
+              AND b.status = 'CONFIRMED'
+              AND b.id != ?
+              AND b.start_time < ? 
+              AND b.end_time > ?
+            LIMIT 1
+        """;
+        try (Connection conn = DatabaseManager.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, roomId);
+            ps.setString(2, date);
+            ps.setInt(3, excludeBookingId);
+            ps.setString(4, newEndTime);
+            ps.setString(5, newStartTime);
+
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return extractBooking(rs);
+                }
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
+
     private Booking extractBooking(ResultSet rs) throws SQLException {
         Booking b = new Booking();
         b.setId(rs.getInt("id"));
@@ -195,6 +269,9 @@ public class BookingDao {
         b.setStartTime(rs.getString("start_time"));
         b.setEndTime(rs.getString("end_time"));
         b.setPurpose(rs.getString("purpose"));
+        try {
+            b.setInvitedUsers(rs.getString("invited_users"));
+        } catch (SQLException ignored) {}
         b.setStatus(rs.getString("status"));
         b.setCreatedAt(rs.getString("created_at"));
 

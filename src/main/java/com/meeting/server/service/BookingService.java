@@ -133,6 +133,75 @@ public class BookingService {
         }
     }
 
+    /**
+     * PHƯƠNG THỨC GIA HẠN GIỜ HỌP AN TOÀN ĐA LUỒNG (THREAD-SAFE & CONCURRENCY CONTROL)
+     * Đồng bộ hóa bằng synchronized (bookingLock) để đảm bảo khi 1 client gia hạn,
+     * các client khác không thể tranh chấp hoặc đặt đè vào khung giờ vừa nới rộng.
+     */
+    public Response extendBooking(int bookingId, int userId, int extendMinutes, boolean isAdmin) {
+        synchronized (bookingLock) {
+            Booking b = bookingDao.getBookingById(bookingId);
+            if (b == null) {
+                return Response.error("Lịch họp không tồn tại!");
+            }
+            if (!isAdmin && b.getUserId() != userId) {
+                return Response.error("Bạn không có quyền gia hạn lịch họp này!");
+            }
+            if (!"CONFIRMED".equalsIgnoreCase(b.getStatus())) {
+                return Response.error("Chỉ có thể gia hạn cuộc họp đang có trạng thái ĐÃ XÁC NHẬN!");
+            }
+
+            // Tính toán giờ kết thúc mới
+            try {
+                java.time.LocalTime currentEnd = java.time.LocalTime.parse(b.getEndTime());
+                java.time.LocalTime newEnd = currentEnd.plusMinutes(extendMinutes);
+                String newEndTimeStr = newEnd.format(java.time.format.DateTimeFormatter.ofPattern("HH:mm"));
+
+                if (newEnd.isAfter(java.time.LocalTime.of(22, 0)) || newEnd.isBefore(currentEnd)) {
+                    return Response.error("Không thể gia hạn sau 22:00 (vượt quá giờ vận hành tòa nhà)!");
+                }
+
+                // Kiểm tra xem khung giờ nới rộng có đụng lịch của ai khác không
+                Booking conflict = bookingDao.findOverlappingBookingExcept(
+                        b.getRoomId(),
+                        b.getBookingDate(),
+                        b.getEndTime(),
+                        newEndTimeStr,
+                        bookingId
+                );
+
+                if (conflict != null) {
+                    String conflictMsg = String.format(
+                            "KHÔNG THỂ GIA HẠN: Khung giờ kế tiếp (%s - %s) tại '%s' đã có cuộc họp của %s (%s) đặt trước! Mục đích: '%s'.",
+                            b.getEndTime(),
+                            newEndTimeStr,
+                            b.getRoomName(),
+                            conflict.getUserFullName(),
+                            conflict.getDepartment(),
+                            conflict.getPurpose()
+                    );
+                    System.out.println("[SYNCHRONIZED - CHẶN GIA HẠN TRÙNG LỊCH] " + conflictMsg);
+                    return Response.conflict(conflictMsg);
+                }
+
+                boolean success = bookingDao.extendBooking(bookingId, userId, newEndTimeStr, isAdmin);
+                if (success) {
+                    System.out.printf("[SYNCHRONIZED - GIA HẠN THÀNH CÔNG] Lịch ID=%d đã gia hạn tới %s%n",
+                            bookingId, newEndTimeStr);
+                    return Response.success("Gia hạn phòng thành công đến " + newEndTimeStr + "!", ActionType.EXTEND_BOOKING, newEndTimeStr);
+                } else {
+                    return Response.error("Lỗi cập nhật CSDL khi gia hạn lịch họp!");
+                }
+            } catch (Exception e) {
+                return Response.error("Lỗi tính toán thời gian gia hạn: " + e.getMessage());
+            }
+        }
+    }
+
+    public List<User> getAllUsers() {
+        return userDao.getAllUsers();
+    }
+
     public List<Booking> getUpcomingConfirmedBookings(String date) {
         return bookingDao.getUpcomingConfirmedBookings(date);
     }

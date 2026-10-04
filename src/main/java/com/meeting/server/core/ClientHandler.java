@@ -148,6 +148,11 @@ public class ClientHandler implements Runnable {
                     return Response.success("Lấy lịch họp của bạn thành công", ActionType.GET_BOOKINGS_BY_USER, JsonUtil.toJson(bookings));
                 }
 
+                case GET_ALL_USERS -> {
+                    List<User> users = bookingService.getAllUsers();
+                    return Response.success("Lấy danh sách người dùng thành công", ActionType.GET_ALL_USERS, JsonUtil.toJson(users));
+                }
+
                 case BOOK_ROOM -> {
                     Booking booking = JsonUtil.fromJson(request.getData(), Booking.class);
                     if (currentUser != null) {
@@ -159,6 +164,28 @@ public class ClientHandler implements Runnable {
                         serverManager.log("[ĐẶT PHÒNG THÀNH CÔNG] Phòng: " + booking.getRoomId() + ", Ngày: " + booking.getBookingDate() + ", Giờ: " + booking.getTimeSlot());
                         // Broadcast tới toàn bộ các Client khác để họ tự động reload bảng lịch
                         serverManager.broadcast(new Response(Response.SUCCESS, "Có lịch đặt phòng mới!", ActionType.BROADCAST_UPDATE, "SCHEDULE_UPDATED"));
+
+                        // Gửi thông báo Lời mời họp trực tiếp qua mạng TCP tới các đồng nghiệp được mời
+                        if (booking.getInvitedUsers() != null && !booking.getInvitedUsers().trim().isEmpty()) {
+                            String[] userIds = booking.getInvitedUsers().split(",");
+                            for (String uIdStr : userIds) {
+                                try {
+                                    int targetId = Integer.parseInt(uIdStr.trim());
+                                    String invMsg = String.format("Bạn được %s (%s) mời tham gia cuộc họp: '%s' tại %s (%s ngày %s)",
+                                            currentUser != null ? currentUser.getFullName() : "Đồng nghiệp",
+                                            currentUser != null ? currentUser.getDepartment() : "Công ty",
+                                            booking.getPurpose(),
+                                            booking.getRoomName() != null ? booking.getRoomName() : ("Phòng ID=" + booking.getRoomId()),
+                                            booking.getTimeSlot(),
+                                            booking.getBookingDate());
+                                    Response invResp = new Response(Response.SUCCESS, invMsg, ActionType.INVITATION_NOTIFICATION, JsonUtil.toJson(booking));
+                                    boolean sent = serverManager.sendToUser(targetId, invResp);
+                                    if (sent) {
+                                        serverManager.log("[LỜI MỜI HỌP TCP] Đã gửi thông báo mời trực tiếp tới User ID=" + targetId);
+                                    }
+                                } catch (Exception ignored) {}
+                            }
+                        }
                     } else if (res.isConflict()) {
                         serverManager.log("[CHẶN TRÙNG LỊCH] " + res.getMessage());
                     }
@@ -187,6 +214,47 @@ public class ClientHandler implements Runnable {
                         serverManager.broadcast(new Response(Response.SUCCESS, "Một phòng họp vừa được trả phòng sớm! Khung giờ đã sẵn sàng cho nhân viên khác đặt.", ActionType.BROADCAST_UPDATE, "SCHEDULE_UPDATED"));
                     }
                     return res;
+                }
+
+                case EXTEND_BOOKING -> {
+                    int bookingId;
+                    int minutes = 30;
+                    try {
+                        bookingId = Integer.parseInt(request.getData());
+                    } catch (NumberFormatException e) {
+                        Map<String, Integer> map = JsonUtil.fromJson(request.getData(), new TypeToken<Map<String, Integer>>() {}.getType());
+                        bookingId = map.get("bookingId");
+                        if (map.containsKey("minutes")) {
+                            minutes = map.get("minutes");
+                        }
+                    }
+                    boolean isAdmin = currentUser != null && currentUser.isAdmin();
+                    int userId = currentUser != null ? currentUser.getId() : 0;
+                    Response res = bookingService.extendBooking(bookingId, userId, minutes, isAdmin);
+                    if (res.isSuccess()) {
+                        serverManager.log("[GIA HẠN THÀNH CÔNG] Lịch ID: " + bookingId + " đã gia hạn thêm " + minutes + " phút!");
+                        serverManager.broadcast(new Response(Response.SUCCESS, "Một cuộc họp vừa được gia hạn thêm giờ!", ActionType.BROADCAST_UPDATE, "SCHEDULE_UPDATED"));
+                    }
+                    return res;
+                }
+
+                case SEND_CHAT_MESSAGE -> {
+                    String msgText = request.getData();
+                    if (msgText == null || msgText.trim().isEmpty()) {
+                        return Response.error("Nội dung tin nhắn không được để trống!");
+                    }
+                    String senderName = currentUser != null ? currentUser.getFullName() : "Khách";
+                    String dept = currentUser != null ? currentUser.getDepartment() : "Chung";
+                    String time = java.time.LocalTime.now().format(java.time.format.DateTimeFormatter.ofPattern("HH:mm:ss"));
+
+                    com.meeting.common.model.ChatMessage chat = new com.meeting.common.model.ChatMessage(
+                            senderName, dept, msgText.trim(), time
+                    );
+                    serverManager.log(String.format("[CHAT NỘI BỘ TCP] %s (%s): %s", senderName, dept, msgText.trim()));
+
+                    // Broadcast tin nhắn tới tất cả client kết nối
+                    serverManager.broadcast(new Response(Response.SUCCESS, "Tin nhắn mới", ActionType.CHAT_BROADCAST, JsonUtil.toJson(chat)));
+                    return null;
                 }
 
                 default -> {

@@ -17,6 +17,8 @@ public class Booking implements Serializable {
     private String roomName;
     private String userFullName;
     private String department;
+    private String invitedUsers; // Danh sách ID người được mời: vd "2,3"
+    private String invitedUserNames; // Tên hiển thị người được mời: vd "An (IT), Vũ (MKT)"
 
     public Booking() {}
 
@@ -130,5 +132,21 @@ public class Booking implements Serializable {
 
     public String getTimeSlot() {
         return startTime + " - " + endTime;
+    }
+
+    public String getInvitedUsers() {
+        return invitedUsers;
+    }
+
+    public void setInvitedUsers(String invitedUsers) {
+        this.invitedUsers = invitedUsers;
+    }
+
+    public String getInvitedUserNames() {
+        return invitedUserNames;
+    }
+
+    public void setInvitedUserNames(String invitedUserNames) {
+        this.invitedUserNames = invitedUserNames;
     }
 }
