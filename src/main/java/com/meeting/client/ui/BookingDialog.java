@@ -12,6 +12,7 @@ import com.meeting.common.protocol.Response;
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 import java.awt.*;
+import java.awt.geom.RoundRectangle2D;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
@@ -30,6 +31,18 @@ public class BookingDialog extends JDialog {
     private JButton btnSubmit;
     private JButton btnCancel;
 
+    // Bảng màu Dark Neon
+    private static final Color BG_DARK = new Color(18, 18, 24);
+    private static final Color CARD_BG = new Color(28, 28, 38);
+    private static final Color ACCENT = new Color(99, 102, 241);
+    private static final Color ACCENT_GLOW = new Color(129, 140, 248);
+    private static final Color ACCENT2 = new Color(16, 185, 129);
+    private static final Color TEXT_PRIMARY = new Color(240, 240, 245);
+    private static final Color TEXT_SECONDARY = new Color(148, 163, 184);
+    private static final Color INPUT_BG = new Color(38, 38, 52);
+    private static final Color INPUT_BORDER = new Color(55, 55, 75);
+    private static final Color GRADIENT_START = new Color(79, 70, 229);
+
     public BookingDialog(Frame parent, SocketClient client, User currentUser, List<Room> rooms, String initialDate, Runnable onSuccessCallback) {
         super(parent, "Đặt phòng họp mới", true);
         this.client = client;
@@ -41,61 +54,121 @@ public class BookingDialog extends JDialog {
     }
 
     private void initUI(String initialDate) {
-        setSize(480, 420);
+        setSize(500, 480);
         setResizable(false);
         setLocationRelativeTo(getParent());
 
-        JPanel panel = new JPanel(new BorderLayout(10, 10));
-        panel.setBorder(new EmptyBorder(20, 25, 20, 25));
+        JPanel panel = new JPanel(new BorderLayout(0, 16));
+        panel.setBackground(BG_DARK);
+        panel.setBorder(new EmptyBorder(24, 28, 20, 28));
 
-        JPanel formPanel = new JPanel(new GridLayout(5, 2, 10, 15));
+        // Header
+        JLabel lblTitle = new JLabel("📝  Đặt Phòng Họp Mới");
+        lblTitle.setFont(new Font("Segoe UI", Font.BOLD, 20));
+        lblTitle.setForeground(TEXT_PRIMARY);
+
+        JLabel lblSub = new JLabel("Điền thông tin bên dưới để tạo lịch họp");
+        lblSub.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        lblSub.setForeground(TEXT_SECONDARY);
+
+        JPanel headerPanel = new JPanel();
+        headerPanel.setOpaque(false);
+        headerPanel.setLayout(new BoxLayout(headerPanel, BoxLayout.Y_AXIS));
+        headerPanel.add(lblTitle);
+        headerPanel.add(Box.createVerticalStrut(4));
+        headerPanel.add(lblSub);
+        panel.add(headerPanel, BorderLayout.NORTH);
+
+        // Form Card
+        JPanel formCard = new JPanel();
+        formCard.setBackground(CARD_BG);
+        formCard.setLayout(new BoxLayout(formCard, BoxLayout.Y_AXIS));
+        formCard.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(INPUT_BORDER, 1),
+                new EmptyBorder(20, 20, 20, 20)
+        ));
 
         // 1. Phòng họp
-        formPanel.add(new JLabel("Chọn phòng họp:"));
         cboRooms = new JComboBox<>();
+        cboRooms.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        cboRooms.setBackground(INPUT_BG);
+        cboRooms.setForeground(TEXT_PRIMARY);
         for (Room r : roomList) {
             cboRooms.addItem(new RoomWrapper(r));
         }
-        formPanel.add(cboRooms);
+        formCard.add(createFormRow("Chọn phòng họp", cboRooms));
+        formCard.add(Box.createVerticalStrut(10));
 
-        // 2. Ngày họp (YYYY-MM-DD)
-        formPanel.add(new JLabel("Ngày họp (YYYY-MM-DD):"));
+        // 2. Ngày họp
         String defaultDate = (initialDate != null && !initialDate.isEmpty()) ? initialDate : LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
-        txtDate = new JTextField(defaultDate);
-        formPanel.add(txtDate);
+        txtDate = createStyledField(defaultDate);
+        formCard.add(createFormRow("Ngày họp (YYYY-MM-DD)", txtDate));
+        formCard.add(Box.createVerticalStrut(10));
 
-        // Khung giờ phổ biến 07:00 -> 21:00 bước 30 phút
         String[] timeSlots = generateTimeSlots();
 
-        // 3. Giờ bắt đầu
-        formPanel.add(new JLabel("Giờ bắt đầu:"));
+        // 3. Giờ bắt đầu & Kết thúc
+        JPanel timeRow = new JPanel(new GridLayout(1, 2, 12, 0));
+        timeRow.setOpaque(false);
+        timeRow.setMaximumSize(new Dimension(500, 60));
+        timeRow.setAlignmentX(Component.LEFT_ALIGNMENT);
+
         cboStartTime = new JComboBox<>(timeSlots);
         cboStartTime.setSelectedItem("09:00");
-        formPanel.add(cboStartTime);
+        cboStartTime.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        cboStartTime.setBackground(INPUT_BG);
+        cboStartTime.setForeground(TEXT_PRIMARY);
 
-        // 4. Giờ kết thúc
-        formPanel.add(new JLabel("Giờ kết thúc:"));
         cboEndTime = new JComboBox<>(timeSlots);
         cboEndTime.setSelectedItem("10:30");
-        formPanel.add(cboEndTime);
+        cboEndTime.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        cboEndTime.setBackground(INPUT_BG);
+        cboEndTime.setForeground(TEXT_PRIMARY);
 
-        // 5. Mục đích
-        formPanel.add(new JLabel("Mục đích cuộc họp:"));
-        txtPurpose = new JTextField("Họp dự án");
-        formPanel.add(txtPurpose);
+        timeRow.add(createFormRow("Giờ bắt đầu", cboStartTime));
+        timeRow.add(createFormRow("Giờ kết thúc", cboEndTime));
+        formCard.add(timeRow);
+        formCard.add(Box.createVerticalStrut(10));
 
-        panel.add(formPanel, BorderLayout.CENTER);
+        // 4. Mục đích
+        txtPurpose = createStyledField("Họp dự án");
+        formCard.add(createFormRow("Mục đích cuộc họp", txtPurpose));
+
+        panel.add(formCard, BorderLayout.CENTER);
 
         // Bottom Buttons
         JPanel btnPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 0));
+        btnPanel.setOpaque(false);
+
         btnCancel = new JButton("Hủy bỏ");
+        btnCancel.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        btnCancel.setBackground(INPUT_BG);
+        btnCancel.setForeground(TEXT_SECONDARY);
+        btnCancel.setFocusPainted(false);
+        btnCancel.setBorderPainted(false);
+        btnCancel.setCursor(new Cursor(Cursor.HAND_CURSOR));
         btnCancel.addActionListener(e -> dispose());
 
-        btnSubmit = new JButton("Xác nhận Đặt phòng");
-        btnSubmit.setFont(new Font("Segoe UI", Font.BOLD, 12));
-        btnSubmit.setBackground(new Color(24, 90, 188));
+        btnSubmit = new JButton("Xác nhận Đặt phòng") {
+            @Override
+            protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                GradientPaint gp = new GradientPaint(0, 0, GRADIENT_START, getWidth(), 0, ACCENT);
+                g2.setPaint(gp);
+                g2.fill(new RoundRectangle2D.Double(0, 0, getWidth(), getHeight(), 8, 8));
+                g2.dispose();
+                super.paintComponent(g);
+            }
+        };
+        btnSubmit.setFont(new Font("Segoe UI", Font.BOLD, 13));
         btnSubmit.setForeground(Color.WHITE);
+        btnSubmit.setContentAreaFilled(false);
         btnSubmit.setFocusPainted(false);
+        btnSubmit.setBorderPainted(false);
+        btnSubmit.setOpaque(false);
+        btnSubmit.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        btnSubmit.setPreferredSize(new Dimension(180, 36));
         btnSubmit.addActionListener(e -> doBookRoom());
 
         btnPanel.add(btnCancel);
@@ -103,6 +176,32 @@ public class BookingDialog extends JDialog {
         panel.add(btnPanel, BorderLayout.SOUTH);
 
         setContentPane(panel);
+    }
+
+    private JTextField createStyledField(String text) {
+        JTextField field = new JTextField(text);
+        field.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        field.setBackground(INPUT_BG);
+        field.setForeground(TEXT_PRIMARY);
+        field.setCaretColor(ACCENT_GLOW);
+        field.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(INPUT_BORDER, 1),
+                new EmptyBorder(5, 8, 5, 8)
+        ));
+        return field;
+    }
+
+    private JPanel createFormRow(String label, JComponent field) {
+        JPanel row = new JPanel(new BorderLayout(0, 4));
+        row.setOpaque(false);
+        row.setMaximumSize(new Dimension(500, 55));
+        row.setAlignmentX(Component.LEFT_ALIGNMENT);
+        JLabel lbl = new JLabel(label);
+        lbl.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        lbl.setForeground(TEXT_SECONDARY);
+        row.add(lbl, BorderLayout.NORTH);
+        row.add(field, BorderLayout.CENTER);
+        return row;
     }
 
     private String[] generateTimeSlots() {
@@ -157,7 +256,7 @@ public class BookingDialog extends JDialog {
         booking.setPurpose(purpose);
 
         btnSubmit.setEnabled(false);
-        btnSubmit.setText("Đang gửi yêu cầu...");
+        btnSubmit.setText("Đang gửi...");
 
         new Thread(() -> {
             Request req = new Request(ActionType.BOOK_ROOM, currentUser.getId(), JsonUtil.toJson(booking));
