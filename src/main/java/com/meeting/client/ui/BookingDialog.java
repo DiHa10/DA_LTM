@@ -31,17 +31,17 @@ public class BookingDialog extends JDialog {
     private JButton btnSubmit;
     private JButton btnCancel;
 
-    // Bảng màu Dark Neon
-    private static final Color BG_DARK = new Color(18, 18, 24);
-    private static final Color CARD_BG = new Color(28, 28, 38);
-    private static final Color ACCENT = new Color(99, 102, 241);
-    private static final Color ACCENT_GLOW = new Color(129, 140, 248);
-    private static final Color ACCENT2 = new Color(16, 185, 129);
-    private static final Color TEXT_PRIMARY = new Color(240, 240, 245);
-    private static final Color TEXT_SECONDARY = new Color(148, 163, 184);
-    private static final Color INPUT_BG = new Color(38, 38, 52);
-    private static final Color INPUT_BORDER = new Color(55, 55, 75);
-    private static final Color GRADIENT_START = new Color(79, 70, 229);
+    // Bảng màu Warm Minimalist (Kem Sữa, Giấy Mộc & Terracotta / Xanh Rêu)
+    private static final Color BG_WARM = new Color(245, 243, 239);       // Nền be kem sữa (#F5F3EF)
+    private static final Color CARD_BG = new Color(255, 255, 255);       // Giấy mộc trắng (#FFFFFF)
+    private static final Color ACCENT_TERRA = new Color(194, 94, 52);    // Cam đất Terracotta (#C25E34)
+    private static final Color ACCENT_FOREST = new Color(28, 63, 52);    // Xanh rêu trầm (#1C3F34)
+    private static final Color TEXT_PRIMARY = new Color(45, 42, 38);     // Nâu đen Espresso (#2D2A26)
+    private static final Color TEXT_SECONDARY = new Color(120, 113, 108);// Warm gray (#78716C)
+    private static final Color INPUT_BG = new Color(250, 249, 246);      // Kem nhạt
+    private static final Color BORDER_WARM = new Color(229, 224, 216);   // Viền cát ấm (#E5E0D8)
+    private static final Color GRADIENT_START = new Color(194, 94, 52);  // Terracotta
+    private static final Color GRADIENT_END = new Color(217, 119, 6);    // Amber
 
     public BookingDialog(Frame parent, SocketClient client, User currentUser, List<Room> rooms, String initialDate, Runnable onSuccessCallback) {
         super(parent, "Đặt phòng họp mới", true);
@@ -59,7 +59,7 @@ public class BookingDialog extends JDialog {
         setLocationRelativeTo(getParent());
 
         JPanel panel = new JPanel(new BorderLayout(0, 16));
-        panel.setBackground(BG_DARK);
+        panel.setBackground(BG_WARM);
         panel.setBorder(new EmptyBorder(24, 28, 20, 28));
 
         // Header
@@ -67,7 +67,7 @@ public class BookingDialog extends JDialog {
         lblTitle.setFont(new Font("Segoe UI", Font.BOLD, 20));
         lblTitle.setForeground(TEXT_PRIMARY);
 
-        JLabel lblSub = new JLabel("Điền thông tin bên dưới để tạo lịch họp");
+        JLabel lblSub = new JLabel("Điền thông tin bên dưới để tạo lịch họp vào hệ thống");
         lblSub.setFont(new Font("Segoe UI", Font.PLAIN, 12));
         lblSub.setForeground(TEXT_SECONDARY);
 
@@ -79,12 +79,12 @@ public class BookingDialog extends JDialog {
         headerPanel.add(lblSub);
         panel.add(headerPanel, BorderLayout.NORTH);
 
-        // Form Card
+        // Form Card giấy mộc
         JPanel formCard = new JPanel();
         formCard.setBackground(CARD_BG);
         formCard.setLayout(new BoxLayout(formCard, BoxLayout.Y_AXIS));
         formCard.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(INPUT_BORDER, 1),
+                BorderFactory.createLineBorder(BORDER_WARM, 1),
                 new EmptyBorder(20, 20, 20, 20)
         ));
 
@@ -142,10 +142,13 @@ public class BookingDialog extends JDialog {
 
         btnCancel = new JButton("Hủy bỏ");
         btnCancel.setFont(new Font("Segoe UI", Font.PLAIN, 13));
-        btnCancel.setBackground(INPUT_BG);
+        btnCancel.setBackground(CARD_BG);
         btnCancel.setForeground(TEXT_SECONDARY);
         btnCancel.setFocusPainted(false);
-        btnCancel.setBorderPainted(false);
+        btnCancel.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(BORDER_WARM, 1),
+                new EmptyBorder(6, 14, 6, 14)
+        ));
         btnCancel.setCursor(new Cursor(Cursor.HAND_CURSOR));
         btnCancel.addActionListener(e -> dispose());
 
@@ -154,7 +157,7 @@ public class BookingDialog extends JDialog {
             protected void paintComponent(Graphics g) {
                 Graphics2D g2 = (Graphics2D) g.create();
                 g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                GradientPaint gp = new GradientPaint(0, 0, GRADIENT_START, getWidth(), 0, ACCENT);
+                GradientPaint gp = new GradientPaint(0, 0, GRADIENT_START, getWidth(), 0, GRADIENT_END);
                 g2.setPaint(gp);
                 g2.fill(new RoundRectangle2D.Double(0, 0, getWidth(), getHeight(), 8, 8));
                 g2.dispose();
@@ -168,7 +171,7 @@ public class BookingDialog extends JDialog {
         btnSubmit.setBorderPainted(false);
         btnSubmit.setOpaque(false);
         btnSubmit.setCursor(new Cursor(Cursor.HAND_CURSOR));
-        btnSubmit.setPreferredSize(new Dimension(180, 36));
+        btnSubmit.setPreferredSize(new Dimension(175, 36));
         btnSubmit.addActionListener(e -> doBookRoom());
 
         btnPanel.add(btnCancel);
@@ -183,9 +186,9 @@ public class BookingDialog extends JDialog {
         field.setFont(new Font("Segoe UI", Font.PLAIN, 13));
         field.setBackground(INPUT_BG);
         field.setForeground(TEXT_PRIMARY);
-        field.setCaretColor(ACCENT_GLOW);
+        field.setCaretColor(ACCENT_TERRA);
         field.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(INPUT_BORDER, 1),
+                BorderFactory.createLineBorder(BORDER_WARM, 1),
                 new EmptyBorder(5, 8, 5, 8)
         ));
         return field;
@@ -205,7 +208,7 @@ public class BookingDialog extends JDialog {
     }
 
     private String[] generateTimeSlots() {
-        String[] slots = new String[29]; // 07:00 -> 21:00
+        String[] slots = new String[29];
         int idx = 0;
         for (int h = 7; h <= 21; h++) {
             slots[idx++] = String.format("%02d:00", h);
@@ -233,7 +236,6 @@ public class BookingDialog extends JDialog {
             return;
         }
 
-        // Validate ngày hợp lệ YYYY-MM-DD
         try {
             LocalDate.parse(date, DateTimeFormatter.ofPattern("yyyy-MM-dd"));
         } catch (Exception ex) {
@@ -241,7 +243,6 @@ public class BookingDialog extends JDialog {
             return;
         }
 
-        // Validate giờ bắt đầu < giờ kết thúc
         if (startTime.compareTo(endTime) >= 0) {
             JOptionPane.showMessageDialog(this, "Giờ kết thúc (" + endTime + ") phải sau giờ bắt đầu (" + startTime + ")!", "Lỗi thời gian", JOptionPane.ERROR_MESSAGE);
             return;
@@ -279,7 +280,6 @@ public class BookingDialog extends JDialog {
                         }
                         dispose();
                     } else if (res.isConflict()) {
-                        // Thông báo khi Server chặn trùng lịch nhờ synchronized
                         JOptionPane.showMessageDialog(BookingDialog.this,
                                 res.getMessage(),
                                 "CẢNH BÁO: TRÙNG LỊCH PHÒNG HỌP", JOptionPane.WARNING_MESSAGE);

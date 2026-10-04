@@ -31,23 +31,21 @@ public class MainDashboard extends JFrame {
     private List<Room> cachedRooms = new ArrayList<>();
     private String selectedDate;
 
-    // Bảng màu Dark Neon
-    private static final Color BG_DARK = new Color(18, 18, 24);
-    private static final Color SIDEBAR_BG = new Color(22, 22, 32);
-    private static final Color CARD_BG = new Color(28, 28, 38);
-    private static final Color ACCENT = new Color(99, 102, 241);
-    private static final Color ACCENT_GLOW = new Color(129, 140, 248);
-    private static final Color ACCENT2 = new Color(16, 185, 129);
-    private static final Color DANGER = new Color(239, 68, 68);
-    private static final Color WARNING_COLOR = new Color(245, 158, 11);
-    private static final Color TEXT_PRIMARY = new Color(240, 240, 245);
-    private static final Color TEXT_SECONDARY = new Color(148, 163, 184);
-    private static final Color INPUT_BG = new Color(38, 38, 52);
-    private static final Color INPUT_BORDER = new Color(55, 55, 75);
-    private static final Color TABLE_ROW_ALT = new Color(32, 32, 44);
-    private static final Color SIDEBAR_ACTIVE = new Color(99, 102, 241, 30);
-    private static final Color GRADIENT_START = new Color(79, 70, 229);
-    private static final Color GRADIENT_END = new Color(16, 185, 129);
+    // Bảng màu Warm Minimalist (Kem Sữa, Giấy Mộc & Terracotta / Xanh Rêu)
+    private static final Color BG_WARM = new Color(245, 243, 239);       // Nền be kem sữa (#F5F3EF)
+    private static final Color SIDEBAR_BG = new Color(28, 63, 52);       // Xanh rêu Forest trầm (#1C3F34)
+    private static final Color SIDEBAR_ACTIVE = new Color(42, 85, 70);   // Rêu sáng hơn khi active
+    private static final Color CARD_BG = new Color(255, 255, 255);       // Giấy mộc trắng (#FFFFFF)
+    private static final Color ACCENT_TERRA = new Color(194, 94, 52);    // Cam đất Terracotta (#C25E34)
+    private static final Color ACCENT_FOREST = new Color(28, 63, 52);    // Xanh rêu trầm
+    private static final Color DANGER = new Color(220, 38, 38);          // Đỏ cam báo hủy
+    private static final Color TEXT_PRIMARY = new Color(45, 42, 38);     // Nâu đen Espresso (#2D2A26)
+    private static final Color TEXT_SECONDARY = new Color(120, 113, 108);// Warm gray (#78716C)
+    private static final Color INPUT_BG = new Color(250, 249, 246);      // Kem nhạt
+    private static final Color BORDER_WARM = new Color(229, 224, 216);   // Viền cát ấm (#E5E0D8)
+    private static final Color TABLE_ROW_ALT = new Color(250, 248, 245); // Dòng xen kẽ ngà nhạt
+    private static final Color GRADIENT_START = new Color(194, 94, 52);  // Terracotta
+    private static final Color GRADIENT_END = new Color(217, 119, 6);    // Amber
 
     // UI Tab 1: Schedule
     private JTextField txtScheduleDate;
@@ -80,45 +78,33 @@ public class MainDashboard extends JFrame {
     }
 
     private void initUI() {
-        setTitle("Meeting Room Booking — " + currentUser.getFullName());
+        setTitle("Meeting Room Booking — [" + currentUser.getFullName() + " - " + currentUser.getRole() + "]");
         setSize(1200, 750);
         setMinimumSize(new Dimension(1000, 640));
         setLocationRelativeTo(null);
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 
         JPanel root = new JPanel(new BorderLayout());
-        root.setBackground(BG_DARK);
+        root.setBackground(BG_WARM);
 
-        // ===== SIDEBAR =====
+        // ===== SIDEBAR XANH RÊU TRẦM =====
         JPanel sidebar = new JPanel();
-        sidebar.setPreferredSize(new Dimension(240, 0));
+        sidebar.setPreferredSize(new Dimension(245, 0));
         sidebar.setBackground(SIDEBAR_BG);
         sidebar.setLayout(new BorderLayout());
-        sidebar.setBorder(new MatteBorder(0, 0, 0, 1, INPUT_BORDER));
 
-        // Sidebar Header — User Avatar & Info
-        JPanel sidebarHeader = new JPanel() {
-            @Override
-            protected void paintComponent(Graphics g) {
-                super.paintComponent(g);
-                Graphics2D g2 = (Graphics2D) g.create();
-                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                GradientPaint gp = new GradientPaint(0, 0, GRADIENT_START, getWidth(), getHeight(), GRADIENT_END);
-                g2.setPaint(gp);
-                g2.fillRect(0, 0, getWidth(), getHeight());
-                g2.dispose();
-            }
-        };
+        // Header thông tin người dùng
+        JPanel sidebarHeader = new JPanel();
+        sidebarHeader.setOpaque(false);
         sidebarHeader.setLayout(new BoxLayout(sidebarHeader, BoxLayout.Y_AXIS));
         sidebarHeader.setBorder(new EmptyBorder(24, 20, 20, 20));
-        sidebarHeader.setPreferredSize(new Dimension(240, 140));
 
-        JLabel lblAvatar = new JLabel(getAvatarEmoji()) {
+        JLabel lblAvatar = new JLabel(currentUser.isAdmin() ? "👨‍💼" : "👤") {
             @Override
             protected void paintComponent(Graphics g) {
                 Graphics2D g2 = (Graphics2D) g.create();
                 g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                g2.setColor(new Color(255, 255, 255, 30));
+                g2.setColor(new Color(255, 255, 255, 25));
                 g2.fillOval(0, 0, 48, 48);
                 g2.dispose();
                 super.paintComponent(g);
@@ -133,8 +119,8 @@ public class MainDashboard extends JFrame {
         lblUserName.setAlignmentX(Component.LEFT_ALIGNMENT);
 
         JLabel lblDept = new JLabel(currentUser.getDepartment() + " • " + currentUser.getRole());
-        lblDept.setFont(new Font("Segoe UI", Font.PLAIN, 11));
-        lblDept.setForeground(new Color(255, 255, 255, 180));
+        lblDept.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        lblDept.setForeground(new Color(245, 243, 239, 180));
         lblDept.setAlignmentX(Component.LEFT_ALIGNMENT);
 
         sidebarHeader.add(lblAvatar);
@@ -143,15 +129,15 @@ public class MainDashboard extends JFrame {
         sidebarHeader.add(Box.createVerticalStrut(3));
         sidebarHeader.add(lblDept);
 
-        // Sidebar Menu
+        // Menu chính
         JPanel menuPanel = new JPanel();
-        menuPanel.setBackground(SIDEBAR_BG);
+        menuPanel.setOpaque(false);
         menuPanel.setLayout(new BoxLayout(menuPanel, BoxLayout.Y_AXIS));
-        menuPanel.setBorder(new EmptyBorder(16, 0, 16, 0));
+        menuPanel.setBorder(new EmptyBorder(12, 0, 12, 0));
 
-        JLabel lblMenuTitle = new JLabel("    MENU CHÍNH");
+        JLabel lblMenuTitle = new JLabel("    DANH MỤC CHÍNH");
         lblMenuTitle.setFont(new Font("Segoe UI", Font.BOLD, 10));
-        lblMenuTitle.setForeground(TEXT_SECONDARY);
+        lblMenuTitle.setForeground(new Color(245, 243, 239, 130));
         lblMenuTitle.setAlignmentX(Component.LEFT_ALIGNMENT);
         menuPanel.add(lblMenuTitle);
         menuPanel.add(Box.createVerticalStrut(8));
@@ -163,9 +149,9 @@ public class MainDashboard extends JFrame {
 
         if (currentUser.isAdmin()) {
             menuPanel.add(Box.createVerticalStrut(16));
-            JLabel lblAdmin = new JLabel("    QUẢN TRỊ");
+            JLabel lblAdmin = new JLabel("    QUẢN TRỊ VIÊN");
             lblAdmin.setFont(new Font("Segoe UI", Font.BOLD, 10));
-            lblAdmin.setForeground(TEXT_SECONDARY);
+            lblAdmin.setForeground(new Color(245, 243, 239, 130));
             lblAdmin.setAlignmentX(Component.LEFT_ALIGNMENT);
             menuPanel.add(lblAdmin);
             menuPanel.add(Box.createVerticalStrut(8));
@@ -173,15 +159,15 @@ public class MainDashboard extends JFrame {
             menuPanel.add(navAdmin);
         }
 
-        // Sidebar Footer — Logout
+        // Footer Sidebar - Đăng xuất
         JPanel sidebarFooter = new JPanel(new BorderLayout());
-        sidebarFooter.setBackground(SIDEBAR_BG);
-        sidebarFooter.setBorder(new EmptyBorder(10, 14, 14, 14));
+        sidebarFooter.setOpaque(false);
+        sidebarFooter.setBorder(new EmptyBorder(10, 16, 16, 16));
 
         JButton btnLogout = new JButton("⏻  Đăng xuất");
         btnLogout.setFont(new Font("Segoe UI", Font.BOLD, 13));
-        btnLogout.setBackground(new Color(239, 68, 68, 40));
-        btnLogout.setForeground(DANGER);
+        btnLogout.setBackground(new Color(255, 255, 255, 20));
+        btnLogout.setForeground(new Color(254, 202, 202));
         btnLogout.setFocusPainted(false);
         btnLogout.setBorderPainted(false);
         btnLogout.setCursor(new Cursor(Cursor.HAND_CURSOR));
@@ -189,9 +175,9 @@ public class MainDashboard extends JFrame {
         btnLogout.addActionListener(e -> doLogout());
         btnLogout.addMouseListener(new MouseAdapter() {
             @Override
-            public void mouseEntered(MouseEvent e) { btnLogout.setBackground(new Color(239, 68, 68, 60)); }
+            public void mouseEntered(MouseEvent e) { btnLogout.setBackground(new Color(220, 38, 38, 50)); }
             @Override
-            public void mouseExited(MouseEvent e) { btnLogout.setBackground(new Color(239, 68, 68, 40)); }
+            public void mouseExited(MouseEvent e) { btnLogout.setBackground(new Color(255, 255, 255, 20)); }
         });
         sidebarFooter.add(btnLogout, BorderLayout.CENTER);
 
@@ -199,10 +185,10 @@ public class MainDashboard extends JFrame {
         sidebar.add(menuPanel, BorderLayout.CENTER);
         sidebar.add(sidebarFooter, BorderLayout.SOUTH);
 
-        // ===== CONTENT AREA (CardLayout) =====
+        // ===== CONTENT AREA VÙNG LÀM VIỆC KEM SỮA =====
         cardLayout = new CardLayout();
         contentArea = new JPanel(cardLayout);
-        contentArea.setBackground(BG_DARK);
+        contentArea.setBackground(BG_WARM);
 
         contentArea.add(createScheduleTab(), "schedule");
         contentArea.add(createMyBookingsTab(), "mybookings");
@@ -210,21 +196,23 @@ public class MainDashboard extends JFrame {
             contentArea.add(createAdminRoomsTab(), "admin");
         }
 
-        // Mặc định kích hoạt tab đầu
         setActiveNav(navSchedule);
         cardLayout.show(contentArea, "schedule");
 
-        // ===== BOTTOM STATUS BAR =====
+        // Bottom Status Bar
         JPanel bottomBar = new JPanel(new BorderLayout());
         bottomBar.setBackground(CARD_BG);
-        bottomBar.setBorder(new EmptyBorder(6, 16, 6, 16));
+        bottomBar.setBorder(BorderFactory.createCompoundBorder(
+                new MatteBorder(1, 0, 0, 0, BORDER_WARM),
+                new EmptyBorder(6, 18, 6, 18)
+        ));
 
-        JLabel lblStatus = new JLabel("● Đã kết nối TCP Server — Nhận thông báo Real-time");
-        lblStatus.setFont(new Font("Segoe UI", Font.PLAIN, 11));
-        lblStatus.setForeground(ACCENT2);
+        JLabel lblStatus = new JLabel("● Đã kết nối TCP Server (Port 8888) — Sẵn sàng nhận thông báo Real-time");
+        lblStatus.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        lblStatus.setForeground(ACCENT_FOREST);
 
-        JLabel lblTech = new JLabel("TCP Socket + Thread + Synchronized");
-        lblTech.setFont(new Font("Consolas", Font.PLAIN, 11));
+        JLabel lblTech = new JLabel("⚡ TCP Socket + Thread + Synchronized");
+        lblTech.setFont(new Font("Segoe UI", Font.BOLD, 11));
         lblTech.setForeground(TEXT_SECONDARY);
 
         bottomBar.add(lblStatus, BorderLayout.WEST);
@@ -236,21 +224,16 @@ public class MainDashboard extends JFrame {
         setContentPane(root);
     }
 
-    private String getAvatarEmoji() {
-        if (currentUser.isAdmin()) return "👨‍💼";
-        return "👤";
-    }
-
     private JPanel createNavButton(String icon, String text, String cardName) {
         JPanel navBtn = new JPanel(new BorderLayout());
-        navBtn.setMaximumSize(new Dimension(240, 44));
+        navBtn.setMaximumSize(new Dimension(245, 42));
         navBtn.setBackground(SIDEBAR_BG);
         navBtn.setBorder(new EmptyBorder(10, 20, 10, 20));
         navBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
 
-        JLabel lbl = new JLabel(icon + "  " + text);
+        JLabel lbl = new JLabel(icon + "   " + text);
         lbl.setFont(new Font("Segoe UI", Font.PLAIN, 14));
-        lbl.setForeground(TEXT_SECONDARY);
+        lbl.setForeground(new Color(245, 243, 239, 200));
         navBtn.add(lbl, BorderLayout.CENTER);
 
         navBtn.putClientProperty("cardName", cardName);
@@ -265,7 +248,7 @@ public class MainDashboard extends JFrame {
             @Override
             public void mouseEntered(MouseEvent e) {
                 if (navBtn != activeNavButton) {
-                    navBtn.setBackground(new Color(40, 40, 55));
+                    navBtn.setBackground(new Color(36, 75, 62));
                 }
             }
             @Override
@@ -283,38 +266,41 @@ public class MainDashboard extends JFrame {
             activeNavButton.setBackground(SIDEBAR_BG);
             activeNavButton.setBorder(new EmptyBorder(10, 20, 10, 20));
             JLabel oldLabel = (JLabel) activeNavButton.getClientProperty("label");
-            if (oldLabel != null) oldLabel.setForeground(TEXT_SECONDARY);
+            if (oldLabel != null) oldLabel.setForeground(new Color(245, 243, 239, 200));
         }
         activeNavButton = navBtn;
         navBtn.setBackground(SIDEBAR_ACTIVE);
         navBtn.setBorder(BorderFactory.createCompoundBorder(
-                new MatteBorder(0, 3, 0, 0, ACCENT),
-                new EmptyBorder(10, 17, 10, 20)
+                new MatteBorder(0, 4, 0, 0, ACCENT_TERRA),
+                new EmptyBorder(10, 16, 10, 20)
         ));
         JLabel newLabel = (JLabel) navBtn.getClientProperty("label");
-        if (newLabel != null) newLabel.setForeground(TEXT_PRIMARY);
+        if (newLabel != null) {
+            newLabel.setForeground(Color.WHITE);
+            newLabel.setFont(new Font("Segoe UI", Font.BOLD, 14));
+        }
     }
 
     // ========== TAB 1: SCHEDULE ==========
     private JPanel createScheduleTab() {
-        JPanel panel = new JPanel(new BorderLayout(0, 12));
-        panel.setBackground(BG_DARK);
-        panel.setBorder(new EmptyBorder(20, 20, 16, 20));
+        JPanel panel = new JPanel(new BorderLayout(0, 14));
+        panel.setBackground(BG_WARM);
+        panel.setBorder(new EmptyBorder(22, 22, 18, 22));
 
-        // Page Title
+        // Header Title
         JLabel lblPageTitle = new JLabel("Lịch Đặt Phòng Họp");
         lblPageTitle.setFont(new Font("Segoe UI", Font.BOLD, 22));
         lblPageTitle.setForeground(TEXT_PRIMARY);
 
-        // Filter Bar Card
+        // Filter Card giấy mộc
         JPanel filterCard = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 0));
         filterCard.setBackground(CARD_BG);
         filterCard.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(INPUT_BORDER, 1),
+                BorderFactory.createLineBorder(BORDER_WARM, 1),
                 new EmptyBorder(10, 14, 10, 14)
         ));
 
-        JLabel lblDateFilter = new JLabel("Ngày:");
+        JLabel lblDateFilter = new JLabel("Xem lịch ngày:");
         lblDateFilter.setForeground(TEXT_SECONDARY);
         lblDateFilter.setFont(new Font("Segoe UI", Font.PLAIN, 13));
         filterCard.add(lblDateFilter);
@@ -322,10 +308,11 @@ public class MainDashboard extends JFrame {
         txtScheduleDate = new JTextField(selectedDate, 10);
         txtScheduleDate.setBackground(INPUT_BG);
         txtScheduleDate.setForeground(TEXT_PRIMARY);
-        txtScheduleDate.setCaretColor(ACCENT_GLOW);
+        txtScheduleDate.setCaretColor(ACCENT_TERRA);
+        txtScheduleDate.setFont(new Font("Segoe UI", Font.PLAIN, 13));
         txtScheduleDate.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(INPUT_BORDER, 1),
-                new EmptyBorder(4, 8, 4, 8)
+                BorderFactory.createLineBorder(BORDER_WARM, 1),
+                new EmptyBorder(5, 8, 5, 8)
         ));
         filterCard.add(txtScheduleDate);
 
@@ -339,13 +326,13 @@ public class MainDashboard extends JFrame {
         }));
         filterCard.add(createFilterButton("Xem Lịch", this::loadBookingsByDate));
 
-        // Nút đặt phòng nổi bật
-        JButton btnBook = new JButton("＋ Đặt Phòng") {
+        // Nút đặt phòng Terracotta
+        JButton btnBook = new JButton("＋ Đặt Phòng Mới") {
             @Override
             protected void paintComponent(Graphics g) {
                 Graphics2D g2 = (Graphics2D) g.create();
                 g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                GradientPaint gp = new GradientPaint(0, 0, ACCENT2, getWidth(), 0, new Color(6, 150, 100));
+                GradientPaint gp = new GradientPaint(0, 0, GRADIENT_START, getWidth(), 0, GRADIENT_END);
                 g2.setPaint(gp);
                 g2.fillRoundRect(0, 0, getWidth(), getHeight(), 8, 8);
                 g2.dispose();
@@ -360,7 +347,7 @@ public class MainDashboard extends JFrame {
         btnBook.setOpaque(false);
         btnBook.setCursor(new Cursor(Cursor.HAND_CURSOR));
         btnBook.addActionListener(e -> openBookingDialog());
-        filterCard.add(Box.createHorizontalStrut(8));
+        filterCard.add(Box.createHorizontalStrut(10));
         filterCard.add(btnBook);
 
         JPanel topArea = new JPanel(new BorderLayout(0, 10));
@@ -369,10 +356,10 @@ public class MainDashboard extends JFrame {
         topArea.add(filterCard, BorderLayout.CENTER);
         panel.add(topArea, BorderLayout.NORTH);
 
-        // Tables
+        // Split Tables
         JSplitPane splitPane = new JSplitPane(JSplitPane.VERTICAL_SPLIT);
         splitPane.setResizeWeight(0.6);
-        splitPane.setBackground(BG_DARK);
+        splitPane.setBackground(BG_WARM);
         splitPane.setBorder(null);
         splitPane.setDividerSize(6);
 
@@ -390,7 +377,7 @@ public class MainDashboard extends JFrame {
             public boolean isCellEditable(int row, int col) { return false; }
         };
         tblRooms = createStyledTable(roomTableModel);
-        JScrollPane scrollRooms = createStyledScrollPane(tblRooms, "Danh mục phòng họp");
+        JScrollPane scrollRooms = createStyledScrollPane(tblRooms, "Danh mục các phòng họp công ty");
 
         splitPane.setTopComponent(scrollBookings);
         splitPane.setBottomComponent(scrollRooms);
@@ -401,9 +388,9 @@ public class MainDashboard extends JFrame {
 
     // ========== TAB 2: MY BOOKINGS ==========
     private JPanel createMyBookingsTab() {
-        JPanel panel = new JPanel(new BorderLayout(0, 12));
-        panel.setBackground(BG_DARK);
-        panel.setBorder(new EmptyBorder(20, 20, 16, 20));
+        JPanel panel = new JPanel(new BorderLayout(0, 14));
+        panel.setBackground(BG_WARM);
+        panel.setBorder(new EmptyBorder(22, 22, 18, 22));
 
         JLabel lblPageTitle = new JLabel("Lịch Họp Của Tôi");
         lblPageTitle.setFont(new Font("Segoe UI", Font.BOLD, 22));
@@ -412,18 +399,21 @@ public class MainDashboard extends JFrame {
         JPanel toolBar = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 0));
         toolBar.setBackground(CARD_BG);
         toolBar.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(INPUT_BORDER, 1),
+                BorderFactory.createLineBorder(BORDER_WARM, 1),
                 new EmptyBorder(10, 14, 10, 14)
         ));
 
         toolBar.add(createFilterButton("🔄 Làm mới", this::loadMyBookings));
 
-        JButton btnCancel = new JButton("✕  Hủy lịch đã chọn");
+        JButton btnCancel = new JButton("✕  Hủy lịch họp đã chọn");
         btnCancel.setFont(new Font("Segoe UI", Font.BOLD, 12));
-        btnCancel.setBackground(new Color(239, 68, 68, 50));
+        btnCancel.setBackground(new Color(254, 242, 242));
         btnCancel.setForeground(DANGER);
         btnCancel.setFocusPainted(false);
-        btnCancel.setBorderPainted(false);
+        btnCancel.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(new Color(254, 202, 202), 1),
+                new EmptyBorder(6, 12, 6, 12)
+        ));
         btnCancel.setCursor(new Cursor(Cursor.HAND_CURSOR));
         btnCancel.addActionListener(e -> doCancelSelectedBooking());
         toolBar.add(btnCancel);
@@ -447,9 +437,9 @@ public class MainDashboard extends JFrame {
 
     // ========== TAB 3: ADMIN ROOMS ==========
     private JPanel createAdminRoomsTab() {
-        JPanel panel = new JPanel(new BorderLayout(0, 12));
-        panel.setBackground(BG_DARK);
-        panel.setBorder(new EmptyBorder(20, 20, 16, 20));
+        JPanel panel = new JPanel(new BorderLayout(0, 14));
+        panel.setBackground(BG_WARM);
+        panel.setBorder(new EmptyBorder(22, 22, 18, 22));
 
         JLabel lblPageTitle = new JLabel("Quản Lý Phòng Họp (Admin)");
         lblPageTitle.setFont(new Font("Segoe UI", Font.BOLD, 22));
@@ -458,28 +448,31 @@ public class MainDashboard extends JFrame {
         JPanel toolBar = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 0));
         toolBar.setBackground(CARD_BG);
         toolBar.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(INPUT_BORDER, 1),
+                BorderFactory.createLineBorder(BORDER_WARM, 1),
                 new EmptyBorder(10, 14, 10, 14)
         ));
 
-        JButton btnAdd = new JButton("＋ Thêm Phòng");
+        JButton btnAdd = new JButton("＋ Thêm Phòng Mới");
         btnAdd.setFont(new Font("Segoe UI", Font.BOLD, 12));
-        btnAdd.setBackground(ACCENT);
+        btnAdd.setBackground(ACCENT_FOREST);
         btnAdd.setForeground(Color.WHITE);
         btnAdd.setFocusPainted(false);
-        btnAdd.setBorderPainted(false);
+        btnAdd.setBorder(new EmptyBorder(7, 14, 7, 14));
         btnAdd.setCursor(new Cursor(Cursor.HAND_CURSOR));
         btnAdd.addActionListener(e -> doAddRoom());
         toolBar.add(btnAdd);
 
-        toolBar.add(createFilterButton("🔄 Đổi trạng thái", this::doToggleRoomStatus));
+        toolBar.add(createFilterButton("🔄 Đổi trạng thái (Bảo trì/Sẵn sàng)", this::doToggleRoomStatus));
 
         JButton btnDel = new JButton("🗑 Xóa Phòng");
         btnDel.setFont(new Font("Segoe UI", Font.BOLD, 12));
-        btnDel.setBackground(new Color(239, 68, 68, 50));
+        btnDel.setBackground(new Color(254, 242, 242));
         btnDel.setForeground(DANGER);
         btnDel.setFocusPainted(false);
-        btnDel.setBorderPainted(false);
+        btnDel.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(new Color(254, 202, 202), 1),
+                new EmptyBorder(6, 12, 6, 12)
+        ));
         btnDel.setCursor(new Cursor(Cursor.HAND_CURSOR));
         btnDel.addActionListener(e -> doDeleteRoom());
         toolBar.add(btnDel);
@@ -510,7 +503,7 @@ public class MainDashboard extends JFrame {
                 if (!isRowSelected(row)) {
                     c.setBackground(row % 2 == 0 ? CARD_BG : TABLE_ROW_ALT);
                 } else {
-                    c.setBackground(new Color(99, 102, 241, 40));
+                    c.setBackground(new Color(254, 243, 235)); // Màu cam đất nhạt khi chọn dòng
                 }
                 c.setForeground(TEXT_PRIMARY);
                 return c;
@@ -520,23 +513,23 @@ public class MainDashboard extends JFrame {
         table.setFont(new Font("Segoe UI", Font.PLAIN, 13));
         table.setBackground(CARD_BG);
         table.setForeground(TEXT_PRIMARY);
-        table.setGridColor(INPUT_BORDER);
-        table.setSelectionBackground(new Color(99, 102, 241, 50));
-        table.setSelectionForeground(TEXT_PRIMARY);
+        table.setGridColor(BORDER_WARM);
+        table.setSelectionBackground(new Color(254, 243, 235));
+        table.setSelectionForeground(ACCENT_TERRA);
         table.setShowGrid(true);
         table.setShowHorizontalLines(true);
         table.setShowVerticalLines(false);
         table.setIntercellSpacing(new Dimension(0, 1));
 
         JTableHeader header = table.getTableHeader();
-        header.setBackground(new Color(35, 35, 50));
-        header.setForeground(ACCENT_GLOW);
+        header.setBackground(new Color(245, 241, 234));
+        header.setForeground(ACCENT_FOREST);
         header.setFont(new Font("Segoe UI", Font.BOLD, 13));
-        header.setBorder(new MatteBorder(0, 0, 2, 0, ACCENT));
+        header.setBorder(new MatteBorder(0, 0, 2, 0, ACCENT_TERRA));
 
         DefaultTableCellRenderer headerRenderer = new DefaultTableCellRenderer();
-        headerRenderer.setBackground(new Color(35, 35, 50));
-        headerRenderer.setForeground(ACCENT_GLOW);
+        headerRenderer.setBackground(new Color(245, 241, 234));
+        headerRenderer.setForeground(ACCENT_FOREST);
         headerRenderer.setFont(new Font("Segoe UI", Font.BOLD, 13));
         headerRenderer.setBorder(new EmptyBorder(6, 8, 6, 8));
         for (int i = 0; i < table.getColumnCount(); i++) {
@@ -550,18 +543,15 @@ public class MainDashboard extends JFrame {
         JScrollPane sp = new JScrollPane(table);
         sp.setBackground(CARD_BG);
         sp.getViewport().setBackground(CARD_BG);
-        sp.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(INPUT_BORDER, 1),
-                new EmptyBorder(0, 0, 0, 0)
-        ));
+        sp.setBorder(BorderFactory.createLineBorder(BORDER_WARM, 1));
         if (title != null) {
             sp.setBorder(BorderFactory.createCompoundBorder(
                     BorderFactory.createTitledBorder(
-                            BorderFactory.createLineBorder(INPUT_BORDER, 1),
+                            BorderFactory.createLineBorder(BORDER_WARM, 1),
                             title,
                             0, 0,
                             new Font("Segoe UI", Font.BOLD, 12),
-                            ACCENT_GLOW
+                            ACCENT_FOREST
                     ),
                     new EmptyBorder(4, 4, 4, 4)
             ));
@@ -575,12 +565,15 @@ public class MainDashboard extends JFrame {
         btn.setBackground(INPUT_BG);
         btn.setForeground(TEXT_PRIMARY);
         btn.setFocusPainted(false);
-        btn.setBorderPainted(false);
+        btn.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(BORDER_WARM, 1),
+                new EmptyBorder(5, 12, 5, 12)
+        ));
         btn.setCursor(new Cursor(Cursor.HAND_CURSOR));
         btn.addActionListener(e -> action.run());
         btn.addMouseListener(new MouseAdapter() {
             @Override
-            public void mouseEntered(MouseEvent e) { btn.setBackground(new Color(50, 50, 68)); }
+            public void mouseEntered(MouseEvent e) { btn.setBackground(new Color(240, 237, 230)); }
             @Override
             public void mouseExited(MouseEvent e) { btn.setBackground(INPUT_BG); }
         });

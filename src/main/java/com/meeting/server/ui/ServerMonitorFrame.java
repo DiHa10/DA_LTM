@@ -1,6 +1,6 @@
 package com.meeting.server.ui;
 
-import com.formdev.flatlaf.FlatDarkLaf;
+import com.formdev.flatlaf.FlatLightLaf;
 import com.meeting.common.model.User;
 import com.meeting.server.core.ClientHandler;
 import com.meeting.server.core.ServerManager;
@@ -25,23 +25,21 @@ public class ServerMonitorFrame extends JFrame {
     private DefaultTableModel clientTableModel;
     private JLabel lblClientCount;
 
-    // Bảng màu Dark Cyber
-    private static final Color BG_DARK = new Color(12, 12, 18);
-    private static final Color CARD_BG = new Color(22, 22, 32);
-    private static final Color PANEL_BG = new Color(28, 28, 40);
-    private static final Color ACCENT = new Color(56, 189, 248);     // Cyan neon
-    private static final Color ACCENT_GLOW = new Color(103, 232, 249);
-    private static final Color ACCENT_GREEN = new Color(16, 185, 129);
-    private static final Color DANGER = new Color(239, 68, 68);
-    private static final Color TEXT_PRIMARY = new Color(240, 240, 245);
-    private static final Color TEXT_SECONDARY = new Color(148, 163, 184);
-    private static final Color INPUT_BG = new Color(38, 38, 52);
-    private static final Color INPUT_BORDER = new Color(55, 55, 75);
-    private static final Color TERMINAL_BG = new Color(10, 10, 16);
-    private static final Color TERMINAL_TEXT = new Color(74, 222, 128);
-    private static final Color TABLE_ROW_ALT = new Color(28, 28, 42);
-    private static final Color GRADIENT_START = new Color(6, 182, 212);
-    private static final Color GRADIENT_END = new Color(59, 130, 246);
+    // Bảng màu Warm Minimalist (Kem Sữa, Giấy Mộc & Terracotta / Xanh Rêu)
+    private static final Color BG_WARM = new Color(245, 243, 239);       // Nền be kem sữa (#F5F3EF)
+    private static final Color CARD_BG = new Color(255, 255, 255);       // Giấy mộc trắng (#FFFFFF)
+    private static final Color ACCENT_FOREST = new Color(28, 63, 52);    // Xanh rêu trầm (#1C3F34)
+    private static final Color ACCENT_TERRA = new Color(194, 94, 52);    // Cam đất Terracotta (#C25E34)
+    private static final Color DANGER = new Color(220, 38, 38);          // Đỏ dừng
+    private static final Color TEXT_PRIMARY = new Color(45, 42, 38);     // Nâu đen Espresso (#2D2A26)
+    private static final Color TEXT_SECONDARY = new Color(120, 113, 108);// Warm gray (#78716C)
+    private static final Color INPUT_BG = new Color(250, 249, 246);      // Kem nhạt
+    private static final Color BORDER_WARM = new Color(229, 224, 216);   // Viền cát ấm (#E5E0D8)
+    private static final Color TABLE_ROW_ALT = new Color(250, 248, 245); // Dòng xen kẽ
+    private static final Color LOG_BG = new Color(30, 28, 26);           // Nền log Espresso sẫm
+    private static final Color LOG_TEXT = new Color(220, 245, 230);      // Chữ log xanh nhạt dễ đọc
+    private static final Color GRADIENT_START = new Color(28, 63, 52);   // Xanh rêu Forest
+    private static final Color GRADIENT_END = new Color(48, 95, 78);     // Rêu sáng
 
     public ServerMonitorFrame() {
         this.serverManager = new ServerManager();
@@ -59,9 +57,9 @@ public class ServerMonitorFrame extends JFrame {
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 
         JPanel root = new JPanel(new BorderLayout(0, 0));
-        root.setBackground(BG_DARK);
+        root.setBackground(BG_WARM);
 
-        // ===== TOP HEADER BAR (Gradient) =====
+        // ===== TOP HEADER BAR (Xanh Rêu Forest Gradient) =====
         JPanel headerBar = new JPanel() {
             @Override
             protected void paintComponent(Graphics g) {
@@ -72,25 +70,25 @@ public class ServerMonitorFrame extends JFrame {
                 g2.setPaint(gp);
                 g2.fillRect(0, 0, getWidth(), getHeight());
 
-                // Decorative circles
-                g2.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 0.06f));
+                // Họa tiết trang trí mờ
+                g2.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 0.08f));
                 g2.setColor(Color.WHITE);
-                g2.fillOval(getWidth() - 100, -30, 120, 120);
-                g2.fillOval(-30, -20, 80, 80);
+                g2.fillOval(getWidth() - 90, -25, 110, 110);
+                g2.fillOval(-20, -20, 80, 80);
                 g2.dispose();
             }
         };
         headerBar.setLayout(new BorderLayout());
-        headerBar.setPreferredSize(new Dimension(0, 60));
-        headerBar.setBorder(new EmptyBorder(0, 20, 0, 20));
+        headerBar.setPreferredSize(new Dimension(0, 62));
+        headerBar.setBorder(new EmptyBorder(0, 22, 0, 22));
 
-        JLabel lblTitle = new JLabel("🖥  TCP SERVER MONITOR");
+        JLabel lblTitle = new JLabel("🌿  TCP SERVER MONITOR");
         lblTitle.setFont(new Font("Segoe UI", Font.BOLD, 18));
         lblTitle.setForeground(Color.WHITE);
 
-        JLabel lblSubtitle = new JLabel("Meeting Room Booking System");
+        JLabel lblSubtitle = new JLabel("Hệ thống quản lý phòng họp qua mạng TCP Socket đa luồng");
         lblSubtitle.setFont(new Font("Segoe UI", Font.PLAIN, 12));
-        lblSubtitle.setForeground(new Color(255, 255, 255, 180));
+        lblSubtitle.setForeground(new Color(245, 243, 239, 190));
 
         JPanel titleGroup = new JPanel();
         titleGroup.setOpaque(false);
@@ -102,27 +100,26 @@ public class ServerMonitorFrame extends JFrame {
         headerBar.add(titleGroup, BorderLayout.WEST);
         root.add(headerBar, BorderLayout.NORTH);
 
-        // ===== CONTROL BAR =====
+        // ===== CONTROL BAR GIẤY MỘC =====
         JPanel controlBar = new JPanel(new FlowLayout(FlowLayout.LEFT, 12, 0));
         controlBar.setBackground(CARD_BG);
         controlBar.setBorder(BorderFactory.createCompoundBorder(
-                new MatteBorder(0, 0, 1, 0, INPUT_BORDER),
-                new EmptyBorder(10, 16, 10, 16)
+                new MatteBorder(0, 0, 1, 0, BORDER_WARM),
+                new EmptyBorder(10, 18, 10, 18)
         ));
 
-        JLabel lblPort = new JLabel("Port:");
+        JLabel lblPort = new JLabel("Cổng (Port):");
         lblPort.setFont(new Font("Segoe UI", Font.BOLD, 13));
-        lblPort.setForeground(TEXT_SECONDARY);
+        lblPort.setForeground(TEXT_PRIMARY);
         controlBar.add(lblPort);
 
         txtPort = new JTextField("8888", 5);
         txtPort.setFont(new Font("Consolas", Font.BOLD, 14));
         txtPort.setBackground(INPUT_BG);
-        txtPort.setForeground(ACCENT);
-        txtPort.setCaretColor(ACCENT_GLOW);
+        txtPort.setForeground(ACCENT_FOREST);
         txtPort.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(INPUT_BORDER, 1),
-                new EmptyBorder(4, 8, 4, 8)
+                BorderFactory.createLineBorder(BORDER_WARM, 1),
+                new EmptyBorder(5, 8, 5, 8)
         ));
         controlBar.add(txtPort);
 
@@ -132,10 +129,9 @@ public class ServerMonitorFrame extends JFrame {
                 Graphics2D g2 = (Graphics2D) g.create();
                 g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
                 if (serverManager.isRunning()) {
-                    g2.setColor(new Color(239, 68, 68, 60));
+                    g2.setColor(new Color(220, 38, 38));
                 } else {
-                    GradientPaint gp = new GradientPaint(0, 0, ACCENT_GREEN, getWidth(), 0, new Color(6, 150, 100));
-                    g2.setPaint(gp);
+                    g2.setColor(ACCENT_FOREST);
                 }
                 g2.fillRoundRect(0, 0, getWidth(), getHeight(), 8, 8);
                 g2.dispose();
@@ -149,90 +145,87 @@ public class ServerMonitorFrame extends JFrame {
         btnStartStop.setBorderPainted(false);
         btnStartStop.setOpaque(false);
         btnStartStop.setCursor(new Cursor(Cursor.HAND_CURSOR));
-        btnStartStop.setPreferredSize(new Dimension(180, 34));
+        btnStartStop.setPreferredSize(new Dimension(175, 34));
         controlBar.add(btnStartStop);
 
-        controlBar.add(Box.createHorizontalStrut(20));
+        controlBar.add(Box.createHorizontalStrut(18));
 
         lblStatus = new JLabel("● ĐANG DỪNG");
         lblStatus.setFont(new Font("Segoe UI", Font.BOLD, 14));
         lblStatus.setForeground(DANGER);
         controlBar.add(lblStatus);
 
-        // ===== CENTER CONTENT =====
-        JPanel centerPanel = new JPanel(new BorderLayout(0, 0));
-        centerPanel.setBackground(BG_DARK);
-
-        // Thêm control bar vào trên nội dung chính
+        // ===== CONTENT AREA =====
         JPanel contentWrapper = new JPanel(new BorderLayout());
-        contentWrapper.setBackground(BG_DARK);
+        contentWrapper.setBackground(BG_WARM);
         contentWrapper.add(controlBar, BorderLayout.NORTH);
 
-        // Split: Left = Log terminal, Right = Clients table
+        // Split: Left = Terminal log, Right = Clients table
         JSplitPane splitPane = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT);
         splitPane.setResizeWeight(0.55);
-        splitPane.setDividerSize(5);
-        splitPane.setBackground(BG_DARK);
-        splitPane.setBorder(new EmptyBorder(12, 12, 12, 12));
+        splitPane.setDividerSize(6);
+        splitPane.setBackground(BG_WARM);
+        splitPane.setBorder(new EmptyBorder(14, 16, 14, 16));
 
-        // LEFT: Terminal-style log
+        // LEFT: Server logs
         JPanel logPanel = new JPanel(new BorderLayout(0, 8));
-        logPanel.setBackground(BG_DARK);
+        logPanel.setBackground(BG_WARM);
 
         JPanel logHeader = new JPanel(new BorderLayout());
         logHeader.setOpaque(false);
-        JLabel lblLogTitle = new JLabel("📡  Server Logs");
+        JLabel lblLogTitle = new JLabel("📡  Nhật ký hoạt động (Server Logs)");
         lblLogTitle.setFont(new Font("Segoe UI", Font.BOLD, 14));
-        lblLogTitle.setForeground(ACCENT_GLOW);
+        lblLogTitle.setForeground(ACCENT_FOREST);
         logHeader.add(lblLogTitle, BorderLayout.WEST);
 
         JButton btnClearLog = new JButton("Xóa log");
-        btnClearLog.setFont(new Font("Segoe UI", Font.PLAIN, 11));
-        btnClearLog.setBackground(INPUT_BG);
+        btnClearLog.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        btnClearLog.setBackground(CARD_BG);
         btnClearLog.setForeground(TEXT_SECONDARY);
         btnClearLog.setFocusPainted(false);
-        btnClearLog.setBorderPainted(false);
+        btnClearLog.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(BORDER_WARM, 1),
+                new EmptyBorder(4, 10, 4, 10)
+        ));
         btnClearLog.setCursor(new Cursor(Cursor.HAND_CURSOR));
         btnClearLog.addActionListener(e -> txtLogs.setText(""));
         btnClearLog.addMouseListener(new MouseAdapter() {
             @Override
-            public void mouseEntered(MouseEvent e) { btnClearLog.setBackground(new Color(50, 50, 68)); }
+            public void mouseEntered(MouseEvent e) { btnClearLog.setBackground(new Color(240, 237, 230)); }
             @Override
-            public void mouseExited(MouseEvent e) { btnClearLog.setBackground(INPUT_BG); }
+            public void mouseExited(MouseEvent e) { btnClearLog.setBackground(CARD_BG); }
         });
         logHeader.add(btnClearLog, BorderLayout.EAST);
-
         logPanel.add(logHeader, BorderLayout.NORTH);
 
         txtLogs = new JTextArea();
         txtLogs.setEditable(false);
         txtLogs.setFont(new Font("Consolas", Font.PLAIN, 12));
-        txtLogs.setBackground(TERMINAL_BG);
-        txtLogs.setForeground(TERMINAL_TEXT);
-        txtLogs.setCaretColor(TERMINAL_TEXT);
+        txtLogs.setBackground(LOG_BG);
+        txtLogs.setForeground(LOG_TEXT);
+        txtLogs.setCaretColor(LOG_TEXT);
         txtLogs.setLineWrap(true);
         txtLogs.setWrapStyleWord(true);
         txtLogs.setBorder(new EmptyBorder(10, 12, 10, 12));
 
         JScrollPane scrollLogs = new JScrollPane(txtLogs);
-        scrollLogs.setBorder(BorderFactory.createLineBorder(INPUT_BORDER, 1));
-        scrollLogs.getViewport().setBackground(TERMINAL_BG);
+        scrollLogs.setBorder(BorderFactory.createLineBorder(BORDER_WARM, 1));
         logPanel.add(scrollLogs, BorderLayout.CENTER);
 
-        // RIGHT: Client table
+        // RIGHT: Connected clients
         JPanel clientPanel = new JPanel(new BorderLayout(0, 8));
-        clientPanel.setBackground(BG_DARK);
+        clientPanel.setBackground(BG_WARM);
 
         JPanel clientHeader = new JPanel(new BorderLayout());
         clientHeader.setOpaque(false);
         JLabel lblClientTitle = new JLabel("👥  Clients Đang Kết Nối");
         lblClientTitle.setFont(new Font("Segoe UI", Font.BOLD, 14));
-        lblClientTitle.setForeground(ACCENT_GLOW);
+        lblClientTitle.setForeground(ACCENT_FOREST);
         clientHeader.add(lblClientTitle, BorderLayout.WEST);
 
-        lblClientCount = new JLabel("0 online");
+        lblClientCount = new JLabel("0 trực tuyến");
         lblClientCount.setFont(new Font("Segoe UI", Font.BOLD, 12));
-        lblClientCount.setForeground(ACCENT_GREEN);
+        lblClientCount.setForeground(ACCENT_TERRA);
         clientHeader.add(lblClientCount, BorderLayout.EAST);
 
         clientPanel.add(clientHeader, BorderLayout.NORTH);
@@ -251,7 +244,7 @@ public class ServerMonitorFrame extends JFrame {
                 if (!isRowSelected(row)) {
                     c.setBackground(row % 2 == 0 ? CARD_BG : TABLE_ROW_ALT);
                 } else {
-                    c.setBackground(new Color(56, 189, 248, 40));
+                    c.setBackground(new Color(254, 243, 235));
                 }
                 c.setForeground(TEXT_PRIMARY);
                 return c;
@@ -261,22 +254,22 @@ public class ServerMonitorFrame extends JFrame {
         tblClients.setFont(new Font("Segoe UI", Font.PLAIN, 12));
         tblClients.setBackground(CARD_BG);
         tblClients.setForeground(TEXT_PRIMARY);
-        tblClients.setGridColor(INPUT_BORDER);
-        tblClients.setSelectionBackground(new Color(56, 189, 248, 50));
-        tblClients.setSelectionForeground(TEXT_PRIMARY);
+        tblClients.setGridColor(BORDER_WARM);
+        tblClients.setSelectionBackground(new Color(254, 243, 235));
+        tblClients.setSelectionForeground(ACCENT_TERRA);
         tblClients.setShowHorizontalLines(true);
         tblClients.setShowVerticalLines(false);
         tblClients.setIntercellSpacing(new Dimension(0, 1));
 
         JTableHeader header = tblClients.getTableHeader();
-        header.setBackground(new Color(30, 30, 46));
-        header.setForeground(ACCENT_GLOW);
+        header.setBackground(new Color(245, 241, 234));
+        header.setForeground(ACCENT_FOREST);
         header.setFont(new Font("Segoe UI", Font.BOLD, 12));
-        header.setBorder(new MatteBorder(0, 0, 2, 0, ACCENT));
+        header.setBorder(new MatteBorder(0, 0, 2, 0, ACCENT_TERRA));
 
         DefaultTableCellRenderer headerRenderer = new DefaultTableCellRenderer();
-        headerRenderer.setBackground(new Color(30, 30, 46));
-        headerRenderer.setForeground(ACCENT_GLOW);
+        headerRenderer.setBackground(new Color(245, 241, 234));
+        headerRenderer.setForeground(ACCENT_FOREST);
         headerRenderer.setFont(new Font("Segoe UI", Font.BOLD, 12));
         headerRenderer.setBorder(new EmptyBorder(6, 8, 6, 8));
         for (int i = 0; i < tblClients.getColumnCount(); i++) {
@@ -284,7 +277,7 @@ public class ServerMonitorFrame extends JFrame {
         }
 
         JScrollPane scrollClients = new JScrollPane(tblClients);
-        scrollClients.setBorder(BorderFactory.createLineBorder(INPUT_BORDER, 1));
+        scrollClients.setBorder(BorderFactory.createLineBorder(BORDER_WARM, 1));
         scrollClients.getViewport().setBackground(CARD_BG);
         clientPanel.add(scrollClients, BorderLayout.CENTER);
 
@@ -292,19 +285,21 @@ public class ServerMonitorFrame extends JFrame {
         splitPane.setRightComponent(clientPanel);
 
         contentWrapper.add(splitPane, BorderLayout.CENTER);
-        centerPanel.add(contentWrapper, BorderLayout.CENTER);
-        root.add(centerPanel, BorderLayout.CENTER);
+        root.add(contentWrapper, BorderLayout.CENTER);
 
         // ===== BOTTOM STATUS =====
         JPanel bottomBar = new JPanel(new BorderLayout());
         bottomBar.setBackground(CARD_BG);
-        bottomBar.setBorder(new EmptyBorder(6, 16, 6, 16));
+        bottomBar.setBorder(BorderFactory.createCompoundBorder(
+                new MatteBorder(1, 0, 0, 0, BORDER_WARM),
+                new EmptyBorder(6, 18, 6, 18)
+        ));
 
         JLabel lblTech = new JLabel("⚡ TCP Socket + Multi-Thread + Synchronized");
-        lblTech.setFont(new Font("Consolas", Font.PLAIN, 11));
+        lblTech.setFont(new Font("Segoe UI", Font.BOLD, 11));
         lblTech.setForeground(TEXT_SECONDARY);
 
-        JLabel lblCredit = new JLabel("Đồ án Lập trình mạng");
+        JLabel lblCredit = new JLabel("Đồ án Lập trình mạng — Khoa CNTT");
         lblCredit.setFont(new Font("Segoe UI", Font.ITALIC, 11));
         lblCredit.setForeground(TEXT_SECONDARY);
 
@@ -334,7 +329,7 @@ public class ServerMonitorFrame extends JFrame {
                 int port = Integer.parseInt(txtPort.getText().trim());
                 serverManager.startServer(port);
                 lblStatus.setText("● ĐANG CHẠY");
-                lblStatus.setForeground(ACCENT_GREEN);
+                lblStatus.setForeground(new Color(22, 101, 52));
                 btnStartStop.setText("■  Dừng Server");
                 btnStartStop.setForeground(Color.WHITE);
                 txtPort.setEnabled(false);
@@ -370,12 +365,12 @@ public class ServerMonitorFrame extends JFrame {
                     u != null ? u.getRole() : "—"
             });
         }
-        lblClientCount.setText(clients.size() + " online");
+        lblClientCount.setText(clients.size() + " trực tuyến");
     }
 
     public static void main(String[] args) {
         try {
-            FlatDarkLaf.setup();
+            FlatLightLaf.setup();
         } catch (Exception ignored) {}
 
         SwingUtilities.invokeLater(() -> {

@@ -1,6 +1,6 @@
 package com.meeting.client.ui;
 
-import com.formdev.flatlaf.FlatDarkLaf;
+import com.formdev.flatlaf.FlatLightLaf;
 import com.meeting.client.net.SocketClient;
 import com.meeting.common.model.User;
 import com.meeting.common.protocol.ActionType;
@@ -26,51 +26,50 @@ public class LoginForm extends JFrame {
     private JButton btnLogin;
     private final SocketClient client = new SocketClient();
 
-    // Bảng màu Dark Neon
-    private static final Color BG_DARK = new Color(18, 18, 24);
-    private static final Color CARD_BG = new Color(28, 28, 38);
-    private static final Color ACCENT = new Color(99, 102, 241);    // Indigo neon
-    private static final Color ACCENT_GLOW = new Color(129, 140, 248);
-    private static final Color ACCENT2 = new Color(16, 185, 129);   // Emerald
-    private static final Color TEXT_PRIMARY = new Color(240, 240, 245);
-    private static final Color TEXT_SECONDARY = new Color(148, 163, 184);
-    private static final Color INPUT_BG = new Color(38, 38, 52);
-    private static final Color INPUT_BORDER = new Color(55, 55, 75);
-    private static final Color GRADIENT_START = new Color(79, 70, 229);
-    private static final Color GRADIENT_END = new Color(16, 185, 129);
+    // Bảng màu Warm Minimalist (Kem Sữa, Giấy Mộc & Terracotta / Xanh Rêu)
+    private static final Color BG_WARM = new Color(245, 243, 239);       // Nền be kem sữa (#F5F3EF)
+    private static final Color CARD_BG = new Color(255, 255, 255);       // Giấy mộc trắng sứ (#FFFFFF)
+    private static final Color ACCENT_TERRA = new Color(194, 94, 52);    // Cam đất Terracotta (#C25E34)
+    private static final Color ACCENT_HOVER = new Color(168, 78, 40);    // Terracotta đậm
+    private static final Color ACCENT_FOREST = new Color(28, 63, 52);    // Xanh rêu trầm (#1C3F34)
+    private static final Color TEXT_PRIMARY = new Color(45, 42, 38);     // Nâu đen Espresso (#2D2A26)
+    private static final Color TEXT_SECONDARY = new Color(120, 113, 108);// Warm gray (#78716C)
+    private static final Color INPUT_BG = new Color(250, 249, 246);      // Nền ô nhập liệu kem nhạt
+    private static final Color BORDER_WARM = new Color(229, 224, 216);   // Viền cát ấm (#E5E0D8)
+    private static final Color GRADIENT_START = new Color(194, 94, 52);  // Terracotta
+    private static final Color GRADIENT_END = new Color(217, 119, 6);    // Amber ấm
 
     public LoginForm() {
         initUI();
     }
 
     private void initUI() {
-        setTitle("Meeting Room Booking System");
+        setTitle("Meeting Room Booking System — Đăng nhập");
         setSize(900, 560);
         setResizable(false);
         setLocationRelativeTo(null);
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        setUndecorated(false);
 
         JPanel root = new JPanel(new GridLayout(1, 2));
-        root.setBackground(BG_DARK);
+        root.setBackground(BG_WARM);
 
-        // ===== BÊN TRÁI: Branding Panel Gradient =====
+        // ===== BÊN TRÁI: Branding Panel Tông Rêu Trầm & Giấy Mộc =====
         JPanel brandPanel = new JPanel() {
             @Override
             protected void paintComponent(Graphics g) {
                 super.paintComponent(g);
                 Graphics2D g2 = (Graphics2D) g.create();
                 g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                GradientPaint gp = new GradientPaint(0, 0, GRADIENT_START, getWidth(), getHeight(), GRADIENT_END);
+                GradientPaint gp = new GradientPaint(0, 0, ACCENT_FOREST, getWidth(), getHeight(), new Color(45, 90, 70));
                 g2.setPaint(gp);
                 g2.fillRect(0, 0, getWidth(), getHeight());
 
-                // Vẽ các vòng tròn trang trí mờ
+                // Các họa tiết hình học mờ trang nhã
                 g2.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 0.08f));
                 g2.setColor(Color.WHITE);
-                g2.fillOval(-40, -40, 200, 200);
-                g2.fillOval(getWidth() - 120, getHeight() - 160, 250, 250);
-                g2.fillOval(80, getHeight() - 80, 140, 140);
+                g2.fillOval(-30, -30, 200, 200);
+                g2.fillOval(getWidth() - 130, getHeight() - 150, 260, 260);
+                g2.fillRoundRect(60, getHeight() - 90, 150, 150, 40, 40);
                 g2.dispose();
             }
         };
@@ -80,61 +79,64 @@ public class LoginForm extends JFrame {
         brandContent.setOpaque(false);
         brandContent.setLayout(new BoxLayout(brandContent, BoxLayout.Y_AXIS));
 
-        JLabel lblIcon = new JLabel("🏢");
-        lblIcon.setFont(new Font("Segoe UI Emoji", Font.PLAIN, 56));
+        JLabel lblIcon = new JLabel("🌿");
+        lblIcon.setFont(new Font("Segoe UI Emoji", Font.PLAIN, 52));
         lblIcon.setAlignmentX(Component.CENTER_ALIGNMENT);
 
         JLabel lblBrand = new JLabel("MEETING ROOM");
-        lblBrand.setFont(new Font("Segoe UI", Font.BOLD, 28));
+        lblBrand.setFont(new Font("Segoe UI", Font.BOLD, 26));
         lblBrand.setForeground(Color.WHITE);
         lblBrand.setAlignmentX(Component.CENTER_ALIGNMENT);
 
         JLabel lblBrand2 = new JLabel("BOOKING SYSTEM");
-        lblBrand2.setFont(new Font("Segoe UI", Font.BOLD, 28));
-        lblBrand2.setForeground(new Color(255, 255, 255, 200));
+        lblBrand2.setFont(new Font("Segoe UI", Font.BOLD, 26));
+        lblBrand2.setForeground(new Color(245, 243, 239, 210));
         lblBrand2.setAlignmentX(Component.CENTER_ALIGNMENT);
 
-        JLabel lblDesc = new JLabel("<html><div style='text-align:center;width:260px;'>Hệ thống đặt phòng họp thông minh<br>sử dụng giao thức TCP Socket</div></html>");
-        lblDesc.setFont(new Font("Segoe UI", Font.PLAIN, 14));
-        lblDesc.setForeground(new Color(255, 255, 255, 180));
+        JLabel lblDesc = new JLabel("<html><div style='text-align:center;width:250px;'>Hệ thống đặt lịch phòng họp thông minh<br>qua giao thức TCP Socket đa luồng</div></html>");
+        lblDesc.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        lblDesc.setForeground(new Color(245, 243, 239, 190));
         lblDesc.setAlignmentX(Component.CENTER_ALIGNMENT);
 
-        JLabel lblTech = new JLabel("⚡ TCP + Thread + Synchronized");
-        lblTech.setFont(new Font("Consolas", Font.BOLD, 12));
-        lblTech.setForeground(new Color(255, 255, 255, 150));
-        lblTech.setAlignmentX(Component.CENTER_ALIGNMENT);
+        JLabel lblBadge = new JLabel("  ⚡ TCP Socket • Thread • Synchronized  ");
+        lblBadge.setFont(new Font("Segoe UI", Font.BOLD, 11));
+        lblBadge.setForeground(new Color(245, 243, 239));
+        lblBadge.setOpaque(true);
+        lblBadge.setBackground(new Color(255, 255, 255, 30));
+        lblBadge.setBorder(new EmptyBorder(5, 12, 5, 12));
+        lblBadge.setAlignmentX(Component.CENTER_ALIGNMENT);
 
         brandContent.add(lblIcon);
-        brandContent.add(Box.createVerticalStrut(12));
+        brandContent.add(Box.createVerticalStrut(10));
         brandContent.add(lblBrand);
         brandContent.add(lblBrand2);
-        brandContent.add(Box.createVerticalStrut(16));
+        brandContent.add(Box.createVerticalStrut(14));
         brandContent.add(lblDesc);
-        brandContent.add(Box.createVerticalStrut(24));
-        brandContent.add(lblTech);
+        brandContent.add(Box.createVerticalStrut(22));
+        brandContent.add(lblBadge);
         brandPanel.add(brandContent);
 
-        // ===== BÊN PHẢI: Form đăng nhập Dark =====
+        // ===== BÊN PHẢI: Card đăng nhập Kem Sữa & Terracotta =====
         JPanel formPanel = new JPanel();
-        formPanel.setBackground(BG_DARK);
+        formPanel.setBackground(BG_WARM);
         formPanel.setLayout(new GridBagLayout());
 
         JPanel card = new JPanel();
         card.setBackground(CARD_BG);
         card.setLayout(new BoxLayout(card, BoxLayout.Y_AXIS));
         card.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(INPUT_BORDER, 1),
-                new EmptyBorder(30, 32, 30, 32)
+                BorderFactory.createLineBorder(BORDER_WARM, 1),
+                new EmptyBorder(28, 32, 28, 32)
         ));
-        card.setPreferredSize(new Dimension(370, 460));
+        card.setPreferredSize(new Dimension(380, 470));
 
-        // Tiêu đề form
+        // Header Form
         JLabel lblLogin = new JLabel("Đăng nhập");
         lblLogin.setFont(new Font("Segoe UI", Font.BOLD, 22));
         lblLogin.setForeground(TEXT_PRIMARY);
         lblLogin.setAlignmentX(Component.LEFT_ALIGNMENT);
 
-        JLabel lblLoginSub = new JLabel("Nhập thông tin kết nối và tài khoản của bạn");
+        JLabel lblLoginSub = new JLabel("Chọn tài khoản hoặc tự điền thông tin đăng nhập");
         lblLoginSub.setFont(new Font("Segoe UI", Font.PLAIN, 12));
         lblLoginSub.setForeground(TEXT_SECONDARY);
         lblLoginSub.setAlignmentX(Component.LEFT_ALIGNMENT);
@@ -142,22 +144,22 @@ public class LoginForm extends JFrame {
         card.add(lblLogin);
         card.add(Box.createVerticalStrut(4));
         card.add(lblLoginSub);
-        card.add(Box.createVerticalStrut(18));
+        card.add(Box.createVerticalStrut(16));
 
-        // Host & Port trong 1 dòng
+        // Host & Port
         JPanel netRow = new JPanel(new GridLayout(1, 2, 10, 0));
         netRow.setOpaque(false);
-        netRow.setMaximumSize(new Dimension(370, 60));
+        netRow.setMaximumSize(new Dimension(380, 56));
         netRow.setAlignmentX(Component.LEFT_ALIGNMENT);
 
         txtHost = createStyledField("127.0.0.1");
         txtPort = createStyledField("8888");
-        netRow.add(createFieldGroup("Máy chủ", txtHost));
-        netRow.add(createFieldGroup("Cổng", txtPort));
+        netRow.add(createFieldGroup("Máy chủ (Host)", txtHost));
+        netRow.add(createFieldGroup("Cổng (Port)", txtPort));
         card.add(netRow);
-        card.add(Box.createVerticalStrut(10));
+        card.add(Box.createVerticalStrut(8));
 
-        // Chọn nhanh tài khoản
+        // Quick Account Selector
         String[] quickList = {
                 "— Tự nhập tài khoản —",
                 "admin (Quản trị viên)",
@@ -169,96 +171,92 @@ public class LoginForm extends JFrame {
         cboQuickAccounts.setFont(new Font("Segoe UI", Font.PLAIN, 13));
         cboQuickAccounts.setBackground(INPUT_BG);
         cboQuickAccounts.setForeground(TEXT_PRIMARY);
-        cboQuickAccounts.setMaximumSize(new Dimension(370, 32));
+        cboQuickAccounts.setMaximumSize(new Dimension(380, 32));
         cboQuickAccounts.setAlignmentX(Component.LEFT_ALIGNMENT);
         cboQuickAccounts.addActionListener(e -> onSelectQuickAccount());
+        card.add(createFieldGroup("Tài khoản mẫu thử nghiệm", cboQuickAccounts));
+        card.add(Box.createVerticalStrut(8));
 
-        JPanel quickGroup = createFieldGroup("Chọn nhanh", cboQuickAccounts);
-        card.add(quickGroup);
-        card.add(Box.createVerticalStrut(10));
-
-        // Tài khoản
+        // Username
         txtUsername = createStyledField("nhanvien1");
         card.add(createFieldGroup("Tên đăng nhập", txtUsername));
-        card.add(Box.createVerticalStrut(10));
+        card.add(Box.createVerticalStrut(8));
 
-        // Mật khẩu
+        // Password
         txtPassword = new JPasswordField("123456");
-        txtPassword.setFont(new Font("Segoe UI", Font.PLAIN, 14));
+        txtPassword.setFont(new Font("Segoe UI", Font.PLAIN, 13));
         txtPassword.setBackground(INPUT_BG);
         txtPassword.setForeground(TEXT_PRIMARY);
-        txtPassword.setCaretColor(ACCENT_GLOW);
+        txtPassword.setCaretColor(ACCENT_TERRA);
         txtPassword.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(INPUT_BORDER, 1),
+                BorderFactory.createLineBorder(BORDER_WARM, 1),
                 new EmptyBorder(6, 10, 6, 10)
         ));
         card.add(createFieldGroup("Mật khẩu", txtPassword));
         card.add(Box.createVerticalStrut(18));
 
-        // Nút đăng nhập gradient
+        // Nút đăng nhập màu Terracotta
         btnLogin = new JButton("ĐĂNG NHẬP") {
             @Override
             protected void paintComponent(Graphics g) {
                 Graphics2D g2 = (Graphics2D) g.create();
                 g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                GradientPaint gp = new GradientPaint(0, 0, GRADIENT_START, getWidth(), 0, ACCENT);
+                GradientPaint gp = new GradientPaint(0, 0, GRADIENT_START, getWidth(), 0, GRADIENT_END);
                 g2.setPaint(gp);
-                g2.fill(new RoundRectangle2D.Double(0, 0, getWidth(), getHeight(), 10, 10));
+                g2.fill(new RoundRectangle2D.Double(0, 0, getWidth(), getHeight(), 8, 8));
                 g2.dispose();
                 super.paintComponent(g);
             }
         };
-        btnLogin.setFont(new Font("Segoe UI", Font.BOLD, 14));
+        btnLogin.setFont(new Font("Segoe UI", Font.BOLD, 13));
         btnLogin.setForeground(Color.WHITE);
         btnLogin.setContentAreaFilled(false);
         btnLogin.setFocusPainted(false);
         btnLogin.setBorderPainted(false);
         btnLogin.setOpaque(false);
         btnLogin.setCursor(new Cursor(Cursor.HAND_CURSOR));
-        btnLogin.setMaximumSize(new Dimension(370, 42));
+        btnLogin.setMaximumSize(new Dimension(380, 40));
         btnLogin.setAlignmentX(Component.LEFT_ALIGNMENT);
         btnLogin.addActionListener(e -> doLogin());
         btnLogin.addMouseListener(new MouseAdapter() {
             @Override
             public void mouseEntered(MouseEvent e) {
-                btnLogin.setBorder(BorderFactory.createLineBorder(ACCENT_GLOW, 2));
+                btnLogin.setBorder(BorderFactory.createLineBorder(ACCENT_HOVER, 2));
             }
             @Override
             public void mouseExited(MouseEvent e) {
                 btnLogin.setBorder(null);
             }
         });
-
         card.add(btnLogin);
 
-        // Enter key to login
         txtPassword.addActionListener(e -> doLogin());
         txtUsername.addActionListener(e -> doLogin());
 
         formPanel.add(card);
-
         root.add(brandPanel);
         root.add(formPanel);
+
         setContentPane(root);
     }
 
     private JTextField createStyledField(String text) {
         JTextField field = new JTextField(text);
-        field.setFont(new Font("Segoe UI", Font.PLAIN, 14));
+        field.setFont(new Font("Segoe UI", Font.PLAIN, 13));
         field.setBackground(INPUT_BG);
         field.setForeground(TEXT_PRIMARY);
-        field.setCaretColor(ACCENT_GLOW);
+        field.setCaretColor(ACCENT_TERRA);
         field.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(INPUT_BORDER, 1),
+                BorderFactory.createLineBorder(BORDER_WARM, 1),
                 new EmptyBorder(6, 10, 6, 10)
         ));
         return field;
     }
 
     private JPanel createFieldGroup(String label, JComponent field) {
-        JPanel group = new JPanel(new BorderLayout(0, 4));
+        JPanel group = new JPanel(new BorderLayout(0, 3));
         group.setOpaque(false);
-        group.setMaximumSize(new Dimension(370, 55));
+        group.setMaximumSize(new Dimension(380, 52));
         group.setAlignmentX(Component.LEFT_ALIGNMENT);
         JLabel lbl = new JLabel(label);
         lbl.setFont(new Font("Segoe UI", Font.PLAIN, 12));
@@ -339,7 +337,7 @@ public class LoginForm extends JFrame {
 
     public static void main(String[] args) {
         try {
-            FlatDarkLaf.setup();
+            FlatLightLaf.setup();
         } catch (Exception ignored) {}
 
         SwingUtilities.invokeLater(() -> {
