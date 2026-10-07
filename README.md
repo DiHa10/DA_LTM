@@ -100,30 +100,54 @@ Hệ thống có menu chọn nhanh tài khoản tại màn hình đăng nhập:
 
 ---
 
+## 🚀 CÁC TÍNH NĂNG MỚI ĐÃ TRIỂN KHAI
+
+### 1. Phân quyền Admin & Quản lý Tài khoản Cấp dưới
+* **Tab Quản Lý Nhân Viên (Admin Only)**:
+  * Admin xem danh sách toàn bộ nhân sự công ty: ID, Username, Họ tên, Email, Phòng ban, Role.
+  * Nút **"+ Tạo Tài Khoản Cấp Dưới"**: Admin tạo nhân sự mới, thiết lập mật khẩu ban đầu, phân quyền (`EMPLOYEE`, `MANAGER`, `ADMIN`), phòng ban và tùy chọn tự động gửi email thông tin đăng nhập.
+  * Nút **"⚡ Phân Quyền (Set Role)"**: Cho phép Admin nâng/hạ quyền hạn nhân viên cấp dưới trực tiếp.
+
+### 2. Chỉnh sửa Hồ sơ cá nhân & Đổi mật khẩu (User Profile)
+* Nút **"✏ Hồ sơ & Đổi MK"** ngay trên Sidebar Header cho mọi tài khoản.
+* **Hộp thoại gồm 2 Tab**:
+  * **Thông tin cá nhân**: Cập nhật Họ và tên, Email nhận thông báo, Phòng ban (Username và Role ở chế độ chỉ đọc).
+  * **Đổi mật khẩu**: Xác thực mật khẩu cũ và đổi mật khẩu mới bảo mật.
+  * Cập nhật tức thì trên giao diện phiên làm việc mà không cần đăng xuất.
+
+### 3. Hệ thống Gửi Email Thông Báo & Nhắc Nhở Phòng Họp
+* **Tự động gửi email khi có phòng họp được mở**: Khi một cuộc họp được đặt thành công, hệ thống tự động gửi email HTML chi tiết tới chủ phòng và các đồng nghiệp được mời.
+* **Nút gửi email thủ công của Chủ phòng**: Trong tab *"Lịch Họp Của Tôi"*, chủ phòng có nút **"✉ Gửi mail nhắc nhở (Thủ công)"** kèm ô nhập ghi chú/lời nhắn khẩn cấp gửi tới toàn bộ thành viên tham gia.
+* **Chế độ Giả lập (Mock Mode)**: Khi chưa cấu hình thông tin SMTP trong file `email.properties`, hệ thống sẽ tự động in log mô phỏng gửi email chi tiết ra Server Console, đảm bảo quá trình demo đồ án luôn mượt mà.
+
+---
+
 ## 📁 CẤU TRÚC MÃ NGUỒN DỰ ÁN
 
 ```text
 DA_LTM/
-├── pom.xml                                 # File cấu hình Maven (FlatLaf, SQLite, Gson)
+├── pom.xml                                 # File cấu hình Maven (FlatLaf, SQLite, Gson, Jakarta Mail)
+├── email.properties                        # Cấu hình SMTP gửi Email (Gmail App Password)
 ├── schema.sql                              # Kịch bản SQL tạo bảng và seed dữ liệu
 ├── meeting_room.db                         # File CSDL SQLite (tự sinh khi chạy Server)
 └── src/main/java/com/meeting/
     ├── common/                             # Các thành phần dùng chung Client - Server
-    │   ├── model/                          # User.java, Room.java, Booking.java
+    │   ├── model/                          # User.java, Room.java, Booking.java, ChatMessage.java
     │   └── protocol/                       # ActionType.java, Request.java, Response.java, JsonUtil.java
     │
     ├── server/                             # Máy chủ TCP Socket Backend
     │   ├── ServerApp.java                  # Main entry point Server
     │   ├── core/                           # ServerManager.java, ClientHandler.java
     │   ├── dao/                            # UserDao.java, RoomDao.java, BookingDao.java
-    │   ├── db/                             # DatabaseManager.java (SQLite auto-init)
-    │   ├── service/                        # BookingService.java (Chứa logic synchronized cốt lõi)
+    │   ├── db/                             # DatabaseManager.java (SQLite auto-init & auto-migration)
+    │   ├── service/                        # BookingService.java, MeetingReminderService.java, EmailService.java
     │   └── ui/                             # ServerMonitorFrame.java (Giao diện giám sát Server)
     │
     ├── client/                             # Máy trạm giao diện người dùng
     │   ├── ClientApp.java                  # Main entry point Client
     │   ├── net/                            # SocketClient.java (Quản lý TCP connection & listener)
-    │   └── ui/                             # LoginForm.java, MainDashboard.java, BookingDialog.java
+    │   └── ui/                             # LoginForm.java, MainDashboard.java, BookingDialog.java,
+    │                                       # UserProfileDialog.java, CreateUserDialog.java, ManualReminderDialog.java
     │
     └── test/                               # Kiểm thử độc lập
         └── ConcurrencySimulationTest.java  # Script giả lập tải 10 thread cùng lúc

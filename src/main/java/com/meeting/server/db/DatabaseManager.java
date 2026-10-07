@@ -22,9 +22,16 @@ public class DatabaseManager {
                     password TEXT NOT NULL,
                     full_name TEXT NOT NULL,
                     role TEXT NOT NULL,
-                    department TEXT NOT NULL
+                    department TEXT NOT NULL,
+                    email TEXT
                 );
             """);
+
+            try {
+                stmt.execute("ALTER TABLE users ADD COLUMN email TEXT;");
+            } catch (SQLException ignored) {
+                // Cột email đã tồn tại
+            }
 
             // 2. Tạo bảng Rooms
             stmt.execute("""
@@ -66,12 +73,18 @@ public class DatabaseManager {
             var rsUsers = stmt.executeQuery("SELECT COUNT(*) FROM users;");
             if (rsUsers.next() && rsUsers.getInt(1) == 0) {
                 stmt.execute("""
-                    INSERT INTO users (username, password, full_name, role, department) VALUES
-                    ('admin', 'admin123', 'Quản Trị Viên (Admin)', 'ADMIN', 'Ban Giám Đốc'),
-                    ('nhanvien1', '123456', 'An', 'EMPLOYEE', 'Phòng Kỹ Thuật IT'),
-                    ('nhanvien2', '123456', 'Vũ', 'EMPLOYEE', 'Phòng Marketing'),
-                    ('nhanvien3', '123456', 'Kha', 'EMPLOYEE', 'Phòng Nhân Sự');
+                    INSERT INTO users (username, password, full_name, role, department, email) VALUES
+                    ('admin', 'admin123', 'Quản Trị Viên (Admin)', 'ADMIN', 'Ban Giám Đốc', 'admin@company.com'),
+                    ('nhanvien1', '123456', 'An', 'EMPLOYEE', 'Phòng Kỹ Thuật IT', 'an.it@company.com'),
+                    ('nhanvien2', '123456', 'Vũ', 'EMPLOYEE', 'Phòng Marketing', 'vu.mkt@company.com'),
+                    ('nhanvien3', '123456', 'Kha', 'EMPLOYEE', 'Phòng Nhân Sự', 'kha.hr@company.com');
                 """);
+            } else {
+                // Bổ sung email cho các user mẫu nếu chưa có
+                stmt.executeUpdate("UPDATE users SET email = 'admin@company.com' WHERE username = 'admin' AND (email IS NULL OR email = '')");
+                stmt.executeUpdate("UPDATE users SET email = 'an.it@company.com' WHERE username = 'nhanvien1' AND (email IS NULL OR email = '')");
+                stmt.executeUpdate("UPDATE users SET email = 'vu.mkt@company.com' WHERE username = 'nhanvien2' AND (email IS NULL OR email = '')");
+                stmt.executeUpdate("UPDATE users SET email = 'kha.hr@company.com' WHERE username = 'nhanvien3' AND (email IS NULL OR email = '')");
             }
 
             // 5. Chèn dữ liệu mẫu nếu bảng Rooms trống

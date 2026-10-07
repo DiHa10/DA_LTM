@@ -11,6 +11,7 @@ import com.meeting.common.protocol.Response;
 
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
+import com.meeting.client.ui.util.AppIcon;
 import java.awt.*;
 import java.awt.geom.RoundRectangle2D;
 import java.time.LocalDate;
@@ -59,8 +60,9 @@ public class BookingDialog extends JDialog {
     }
 
     private void initUI(String initialDate) {
-        setSize(530, 620);
-        setResizable(false);
+        setSize(540, 720);
+        setMinimumSize(new Dimension(500, 620));
+        setResizable(true);
         setLocationRelativeTo(getParent());
 
         JPanel panel = new JPanel(new BorderLayout(0, 16));
@@ -68,8 +70,10 @@ public class BookingDialog extends JDialog {
         panel.setBorder(new EmptyBorder(24, 28, 20, 28));
 
         // Header
-        JLabel lblTitle = new JLabel("\uD83D\uDCDD  \u0110\u1EB7t Ph\u00F2ng H\u1ECDp M\u1EDBi");
-        lblTitle.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 20));
+        JLabel lblTitle = new JLabel("Đặt Phòng Họp Mới");
+        lblTitle.setIcon(AppIcon.calendar(20, ACCENT_TERRA));
+        lblTitle.setIconTextGap(8);
+        lblTitle.setFont(new Font("Segoe UI", Font.BOLD, 20));
         lblTitle.setForeground(TEXT_PRIMARY);
 
         JLabel lblSub = new JLabel("Điền thông tin bên dưới để tạo lịch họp vào hệ thống");
@@ -144,17 +148,27 @@ public class BookingDialog extends JDialog {
         pnlColleagues = new JPanel();
         pnlColleagues.setLayout(new BoxLayout(pnlColleagues, BoxLayout.Y_AXIS));
         pnlColleagues.setBackground(INPUT_BG);
+        pnlColleagues.setBorder(new EmptyBorder(6, 8, 6, 8));
         JLabel lblLoading = new JLabel("Đang tải danh sách nhân viên...");
         lblLoading.setFont(new Font("Segoe UI", Font.ITALIC, 11));
         lblLoading.setForeground(TEXT_SECONDARY);
         pnlColleagues.add(lblLoading);
 
         JScrollPane scrollColleagues = new JScrollPane(pnlColleagues);
-        scrollColleagues.setPreferredSize(new Dimension(460, 80));
-        scrollColleagues.setMaximumSize(new Dimension(500, 80));
+        scrollColleagues.setPreferredSize(new Dimension(460, 180));
+        scrollColleagues.setMinimumSize(new Dimension(400, 140));
         scrollColleagues.setBorder(BorderFactory.createLineBorder(BORDER_WARM, 1));
-        scrollColleagues.getVerticalScrollBar().setUnitIncrement(10);
-        formCard.add(createFormRow("Mời đồng nghiệp tham gia họp (TCP Real-time Alert)", scrollColleagues));
+        scrollColleagues.getVerticalScrollBar().setUnitIncrement(14);
+
+        JPanel rowColleagues = new JPanel(new BorderLayout(0, 4));
+        rowColleagues.setOpaque(false);
+        rowColleagues.setAlignmentX(Component.LEFT_ALIGNMENT);
+        JLabel lblColleagues = new JLabel("Mời đồng nghiệp tham gia họp (TCP Real-time Alert):");
+        lblColleagues.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        lblColleagues.setForeground(TEXT_SECONDARY);
+        rowColleagues.add(lblColleagues, BorderLayout.NORTH);
+        rowColleagues.add(scrollColleagues, BorderLayout.CENTER);
+        formCard.add(rowColleagues);
 
         panel.add(formCard, BorderLayout.CENTER);
 
@@ -188,6 +202,8 @@ public class BookingDialog extends JDialog {
         };
         btnSubmit.setFont(new Font("Segoe UI", Font.BOLD, 13));
         btnSubmit.setForeground(Color.WHITE);
+        btnSubmit.setIcon(AppIcon.check(14, Color.WHITE));
+        btnSubmit.setIconTextGap(6);
         btnSubmit.setContentAreaFilled(false);
         btnSubmit.setFocusPainted(false);
         btnSubmit.setBorderPainted(false);
@@ -349,10 +365,13 @@ public class BookingDialog extends JDialog {
                     if (allUsers != null) {
                         for (User u : allUsers) {
                             if (u.getId() != currentUser.getId()) {
-                                JCheckBox cb = new JCheckBox(u.getFullName() + " (" + u.getDepartment() + ")");
+                                String emailSuffix = u.getEmail() != null && !u.getEmail().isEmpty() ? " <" + u.getEmail() + ">" : "";
+                                JCheckBox cb = new JCheckBox(u.getFullName() + emailSuffix + " (" + u.getDepartment() + ")");
                                 cb.setFont(new Font("Segoe UI", Font.PLAIN, 12));
                                 cb.setBackground(INPUT_BG);
                                 cb.setForeground(TEXT_PRIMARY);
+                                cb.setCursor(new Cursor(Cursor.HAND_CURSOR));
+                                cb.setBorder(new EmptyBorder(3, 4, 3, 4));
                                 cb.putClientProperty("userId", u.getId());
                                 cb.putClientProperty("userObj", u);
                                 colleagueCheckBoxes.add(cb);

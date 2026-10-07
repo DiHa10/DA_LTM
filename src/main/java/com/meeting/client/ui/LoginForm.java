@@ -10,6 +10,7 @@ import com.meeting.common.protocol.Response;
 
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
+import com.meeting.client.ui.util.AppIcon;
 import java.awt.*;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
@@ -22,7 +23,6 @@ public class LoginForm extends JFrame {
     private JTextField txtPort;
     private JTextField txtUsername;
     private JPasswordField txtPassword;
-    private JComboBox<String> cboQuickAccounts;
     private JButton btnLogin;
     private final SocketClient client = new SocketClient();
 
@@ -79,9 +79,20 @@ public class LoginForm extends JFrame {
         brandContent.setOpaque(false);
         brandContent.setLayout(new BoxLayout(brandContent, BoxLayout.Y_AXIS));
 
-        JLabel lblIcon = new JLabel("\uD83C\uDF3F");
-        lblIcon.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 52));
-        lblIcon.setForeground(Color.WHITE);
+        JLabel lblIcon = new JLabel(AppIcon.calendar(34, Color.WHITE)) {
+            @Override
+            protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                g2.setColor(new Color(255, 255, 255, 35));
+                g2.fillOval(0, 0, getWidth(), getHeight());
+                g2.dispose();
+                super.paintComponent(g);
+            }
+        };
+        lblIcon.setPreferredSize(new Dimension(68, 68));
+        lblIcon.setMaximumSize(new Dimension(68, 68));
+        lblIcon.setHorizontalAlignment(SwingConstants.CENTER);
         lblIcon.setAlignmentX(Component.CENTER_ALIGNMENT);
 
         JLabel lblBrand = new JLabel("MEETING ROOM");
@@ -99,8 +110,8 @@ public class LoginForm extends JFrame {
         lblDesc.setForeground(new Color(245, 243, 239, 190));
         lblDesc.setAlignmentX(Component.CENTER_ALIGNMENT);
 
-        JLabel lblBadge = new JLabel("  \u26A1 TCP Socket \u2022 Thread \u2022 Synchronized  ");
-        lblBadge.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 11));
+        JLabel lblBadge = new JLabel("  ● TCP Socket • Thread • Synchronized  ");
+        lblBadge.setFont(new Font("Segoe UI", Font.BOLD, 11));
         lblBadge.setForeground(new Color(245, 243, 239));
         lblBadge.setOpaque(true);
         lblBadge.setBackground(new Color(255, 255, 255, 30));
@@ -108,7 +119,7 @@ public class LoginForm extends JFrame {
         lblBadge.setAlignmentX(Component.CENTER_ALIGNMENT);
 
         brandContent.add(lblIcon);
-        brandContent.add(Box.createVerticalStrut(10));
+        brandContent.add(Box.createVerticalStrut(12));
         brandContent.add(lblBrand);
         brandContent.add(lblBrand2);
         brandContent.add(Box.createVerticalStrut(14));
@@ -129,7 +140,7 @@ public class LoginForm extends JFrame {
                 BorderFactory.createLineBorder(BORDER_WARM, 1),
                 new EmptyBorder(28, 32, 28, 32)
         ));
-        card.setPreferredSize(new Dimension(380, 470));
+        card.setPreferredSize(new Dimension(380, 420));
 
         // Header Form
         JLabel lblLogin = new JLabel("Đăng nhập");
@@ -137,7 +148,7 @@ public class LoginForm extends JFrame {
         lblLogin.setForeground(TEXT_PRIMARY);
         lblLogin.setAlignmentX(Component.LEFT_ALIGNMENT);
 
-        JLabel lblLoginSub = new JLabel("Chọn tài khoản hoặc tự điền thông tin đăng nhập");
+        JLabel lblLoginSub = new JLabel("Nhập thông tin tài khoản để đăng nhập hệ thống");
         lblLoginSub.setFont(new Font("Segoe UI", Font.PLAIN, 12));
         lblLoginSub.setForeground(TEXT_SECONDARY);
         lblLoginSub.setAlignmentX(Component.LEFT_ALIGNMENT);
@@ -145,7 +156,7 @@ public class LoginForm extends JFrame {
         card.add(lblLogin);
         card.add(Box.createVerticalStrut(4));
         card.add(lblLoginSub);
-        card.add(Box.createVerticalStrut(16));
+        card.add(Box.createVerticalStrut(18));
 
         // Host & Port
         JPanel netRow = new JPanel(new GridLayout(1, 2, 10, 0));
@@ -158,33 +169,15 @@ public class LoginForm extends JFrame {
         netRow.add(createFieldGroup("Máy chủ (Host)", txtHost));
         netRow.add(createFieldGroup("Cổng (Port)", txtPort));
         card.add(netRow);
-        card.add(Box.createVerticalStrut(8));
-
-        // Quick Account Selector
-        String[] quickList = {
-                "— Tự nhập tài khoản —",
-                "admin (Quản trị viên)",
-                "nhanvien1 (An - IT)",
-                "nhanvien2 (Vũ - MKT)",
-                "nhanvien3 (Kha - HR)"
-        };
-        cboQuickAccounts = new JComboBox<>(quickList);
-        cboQuickAccounts.setFont(new Font("Segoe UI", Font.PLAIN, 13));
-        cboQuickAccounts.setBackground(INPUT_BG);
-        cboQuickAccounts.setForeground(TEXT_PRIMARY);
-        cboQuickAccounts.setMaximumSize(new Dimension(380, 32));
-        cboQuickAccounts.setAlignmentX(Component.LEFT_ALIGNMENT);
-        cboQuickAccounts.addActionListener(e -> onSelectQuickAccount());
-        card.add(createFieldGroup("Tài khoản mẫu thử nghiệm", cboQuickAccounts));
-        card.add(Box.createVerticalStrut(8));
+        card.add(Box.createVerticalStrut(12));
 
         // Username
-        txtUsername = createStyledField("nhanvien1");
+        txtUsername = createStyledField("");
         card.add(createFieldGroup("Tên đăng nhập", txtUsername));
-        card.add(Box.createVerticalStrut(8));
+        card.add(Box.createVerticalStrut(12));
 
         // Password
-        txtPassword = new JPasswordField("123456");
+        txtPassword = new JPasswordField("");
         txtPassword.setFont(new Font("Segoe UI", Font.PLAIN, 13));
         txtPassword.setBackground(INPUT_BG);
         txtPassword.setForeground(TEXT_PRIMARY);
@@ -194,7 +187,7 @@ public class LoginForm extends JFrame {
                 new EmptyBorder(6, 10, 6, 10)
         ));
         card.add(createFieldGroup("Mật khẩu", txtPassword));
-        card.add(Box.createVerticalStrut(18));
+        card.add(Box.createVerticalStrut(20));
 
         // Nút đăng nhập màu Terracotta
         btnLogin = new JButton("ĐĂNG NHẬP") {
@@ -267,15 +260,6 @@ public class LoginForm extends JFrame {
         return group;
     }
 
-    private void onSelectQuickAccount() {
-        int idx = cboQuickAccounts.getSelectedIndex();
-        switch (idx) {
-            case 1 -> { txtUsername.setText("admin"); txtPassword.setText("admin123"); }
-            case 2 -> { txtUsername.setText("nhanvien1"); txtPassword.setText("123456"); }
-            case 3 -> { txtUsername.setText("nhanvien2"); txtPassword.setText("123456"); }
-            case 4 -> { txtUsername.setText("nhanvien3"); txtPassword.setText("123456"); }
-        }
-    }
 
     private void doLogin() {
         String host = txtHost.getText().trim();

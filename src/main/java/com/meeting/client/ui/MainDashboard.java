@@ -9,6 +9,7 @@ import com.meeting.common.protocol.ActionType;
 import com.meeting.common.protocol.JsonUtil;
 import com.meeting.common.protocol.Request;
 import com.meeting.common.protocol.Response;
+import com.meeting.client.ui.util.AppIcon;
 
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
@@ -23,11 +24,13 @@ import java.awt.event.MouseEvent;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 public class MainDashboard extends JFrame {
     private final SocketClient client;
-    private final User currentUser;
+    private User currentUser;
 
     private List<Room> cachedRooms = new ArrayList<>();
     private String selectedDate;
@@ -58,10 +61,19 @@ public class MainDashboard extends JFrame {
     // UI Tab 2: My Bookings
     private JTable tblMyBookings;
     private DefaultTableModel myBookingTableModel;
+    private List<Booking> cachedMyBookings = new ArrayList<>();
 
     // UI Tab 3: Admin Rooms
     private JTable tblAdminRooms;
     private DefaultTableModel adminRoomTableModel;
+
+    // UI Tab: Admin Users
+    private JTable tblAdminUsers;
+    private DefaultTableModel adminUserTableModel;
+
+    // Sidebar user labels
+    private JLabel lblUserName;
+    private JLabel lblDept;
 
     // UI Tab 4: Internal Chat
     private JPanel pnlChatMessages;
@@ -78,6 +90,7 @@ public class MainDashboard extends JFrame {
     private JPanel activeNavButton = null;
     private CardLayout cardLayout;
     private JPanel contentArea;
+    private volatile boolean isLoggingOut = false;
 
     public MainDashboard(SocketClient client, User currentUser) {
         this.client = client;
@@ -91,8 +104,8 @@ public class MainDashboard extends JFrame {
 
     private void initUI() {
         setTitle("Meeting Room Booking — [" + currentUser.getFullName() + " - " + currentUser.getRole() + "]");
-        setSize(1200, 750);
-        setMinimumSize(new Dimension(1000, 640));
+        setSize(1240, 760);
+        setMinimumSize(new Dimension(1020, 640));
         setLocationRelativeTo(null);
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 
@@ -111,12 +124,12 @@ public class MainDashboard extends JFrame {
         sidebarHeader.setLayout(new BoxLayout(sidebarHeader, BoxLayout.Y_AXIS));
         sidebarHeader.setBorder(new EmptyBorder(24, 20, 20, 20));
 
-        JLabel lblAvatar = new JLabel("\uD83D\uDC64") {
+        JLabel lblAvatar = new JLabel(AppIcon.avatar(28, Color.WHITE)) {
             @Override
             protected void paintComponent(Graphics g) {
                 Graphics2D g2 = (Graphics2D) g.create();
                 g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                g2.setColor(new Color(255, 255, 255, 25));
+                g2.setColor(new Color(255, 255, 255, 35));
                 g2.fillOval(0, 0, 48, 48);
                 g2.dispose();
                 super.paintComponent(g);
@@ -125,25 +138,37 @@ public class MainDashboard extends JFrame {
         lblAvatar.setPreferredSize(new Dimension(48, 48));
         lblAvatar.setMaximumSize(new Dimension(48, 48));
         lblAvatar.setHorizontalAlignment(SwingConstants.CENTER);
-        lblAvatar.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 26));
-        lblAvatar.setForeground(Color.WHITE);
         lblAvatar.setAlignmentX(Component.LEFT_ALIGNMENT);
 
-        JLabel lblUserName = new JLabel(currentUser.getFullName());
+        lblUserName = new JLabel(currentUser.getFullName());
         lblUserName.setFont(new Font("Segoe UI", Font.BOLD, 16));
         lblUserName.setForeground(Color.WHITE);
         lblUserName.setAlignmentX(Component.LEFT_ALIGNMENT);
 
-        JLabel lblDept = new JLabel(currentUser.getDepartment() + " • " + currentUser.getRole());
+        lblDept = new JLabel(currentUser.getDepartment() + " • " + currentUser.getRole());
         lblDept.setFont(new Font("Segoe UI", Font.PLAIN, 12));
         lblDept.setForeground(new Color(245, 243, 239, 180));
         lblDept.setAlignmentX(Component.LEFT_ALIGNMENT);
+
+        JButton btnEditProfile = new JButton("Hồ sơ & Đổi MK");
+        btnEditProfile.setIcon(AppIcon.edit(13, new Color(254, 243, 235)));
+        btnEditProfile.setIconTextGap(6);
+        btnEditProfile.setFont(new Font("Segoe UI", Font.BOLD, 11));
+        btnEditProfile.setForeground(new Color(254, 243, 235));
+        btnEditProfile.setBackground(new Color(255, 255, 255, 30));
+        btnEditProfile.setBorder(new EmptyBorder(4, 8, 4, 8));
+        btnEditProfile.setFocusPainted(false);
+        btnEditProfile.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        btnEditProfile.setAlignmentX(Component.LEFT_ALIGNMENT);
+        btnEditProfile.addActionListener(e -> openUserProfileDialog());
 
         sidebarHeader.add(lblAvatar);
         sidebarHeader.add(Box.createVerticalStrut(10));
         sidebarHeader.add(lblUserName);
         sidebarHeader.add(Box.createVerticalStrut(3));
         sidebarHeader.add(lblDept);
+        sidebarHeader.add(Box.createVerticalStrut(8));
+        sidebarHeader.add(btnEditProfile);
 
         // Menu chính
         JPanel menuPanel = new JPanel();
@@ -158,9 +183,9 @@ public class MainDashboard extends JFrame {
         menuPanel.add(lblMenuTitle);
         menuPanel.add(Box.createVerticalStrut(8));
 
-        JPanel navSchedule = createNavButton("\uD83D\uDCC5", "Lịch Đặt Phòng", "schedule");
-        JPanel navMyBookings = createNavButton("\uD83D\uDCCB", "Lịch Họp Của Tôi", "mybookings");
-        JPanel navChat = createNavButton("\uD83D\uDCAC", "Kênh Trao Đổi (Chat)", "chat");
+        JPanel navSchedule = createNavButton(AppIcon.calendar(16, new Color(245, 243, 239, 220)), "Lịch Đặt Phòng", "schedule");
+        JPanel navMyBookings = createNavButton(AppIcon.bookings(16, new Color(245, 243, 239, 220)), "Lịch Họp Của Tôi", "mybookings");
+        JPanel navChat = createNavButton(AppIcon.chat(16, new Color(245, 243, 239, 220)), "Kênh Trao Đổi (Chat)", "chat");
         menuPanel.add(navSchedule);
         menuPanel.add(navMyBookings);
         menuPanel.add(navChat);
@@ -173,8 +198,10 @@ public class MainDashboard extends JFrame {
             lblAdmin.setAlignmentX(Component.LEFT_ALIGNMENT);
             menuPanel.add(lblAdmin);
             menuPanel.add(Box.createVerticalStrut(8));
-            JPanel navAdmin = createNavButton("\u2699", "Quản Lý Phòng", "admin");
+            JPanel navAdmin = createNavButton(AppIcon.gear(16, new Color(245, 243, 239, 220)), "Quản Lý Phòng", "admin");
+            JPanel navAdminUsers = createNavButton(AppIcon.users(16, new Color(245, 243, 239, 220)), "Quản Lý Nhân Viên", "admin_users");
             menuPanel.add(navAdmin);
+            menuPanel.add(navAdminUsers);
         }
 
         // Footer Sidebar - Đăng xuất
@@ -213,6 +240,7 @@ public class MainDashboard extends JFrame {
         contentArea.add(createChatTab(), "chat");
         if (currentUser.isAdmin()) {
             contentArea.add(createAdminRoomsTab(), "admin");
+            contentArea.add(createAdminUsersTab(), "admin_users");
         }
 
         setActiveNav(navSchedule);
@@ -243,15 +271,19 @@ public class MainDashboard extends JFrame {
         setContentPane(root);
     }
 
-    private JPanel createNavButton(String icon, String text, String cardName) {
+    private JPanel createNavButton(Icon icon, String text, String cardName) {
         JPanel navBtn = new JPanel(new BorderLayout());
         navBtn.setMaximumSize(new Dimension(245, 42));
         navBtn.setBackground(SIDEBAR_BG);
         navBtn.setBorder(new EmptyBorder(10, 20, 10, 20));
         navBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
 
-        JLabel lbl = new JLabel(icon + "   " + text);
-        lbl.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 14));
+        JLabel lbl = new JLabel(text);
+        if (icon != null) {
+            lbl.setIcon(icon);
+            lbl.setIconTextGap(12);
+        }
+        lbl.setFont(new Font("Segoe UI", Font.BOLD, 13));
         lbl.setForeground(new Color(245, 243, 239, 200));
         navBtn.add(lbl, BorderLayout.CENTER);
 
@@ -361,6 +393,8 @@ public class MainDashboard extends JFrame {
         };
         btnBook.setFont(new Font("Segoe UI", Font.BOLD, 13));
         btnBook.setForeground(Color.WHITE);
+        btnBook.setIcon(AppIcon.calendar(14, Color.WHITE));
+        btnBook.setIconTextGap(6);
         btnBook.setContentAreaFilled(false);
         btnBook.setFocusPainted(false);
         btnBook.setBorderPainted(false);
@@ -370,8 +404,10 @@ public class MainDashboard extends JFrame {
         filterCard.add(Box.createHorizontalStrut(10));
         filterCard.add(btnBook);
 
-        btnNotifications = new JButton("\uD83D\uDD14 Th\u00F4ng b\u00E1o (0)");
-        btnNotifications.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 12));
+        btnNotifications = new JButton("Thông báo (0)");
+        btnNotifications.setIcon(AppIcon.bell(14, ACCENT_TERRA));
+        btnNotifications.setIconTextGap(6);
+        btnNotifications.setFont(new Font("Segoe UI", Font.BOLD, 12));
         btnNotifications.setBackground(INPUT_BG);
         btnNotifications.setForeground(ACCENT_TERRA);
         btnNotifications.setFocusPainted(false);
@@ -430,53 +466,87 @@ public class MainDashboard extends JFrame {
         lblPageTitle.setFont(new Font("Segoe UI", Font.BOLD, 22));
         lblPageTitle.setForeground(TEXT_PRIMARY);
 
-        JPanel toolBar = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 0));
+        JPanel toolBar = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 4)) {
+            @Override
+            public Dimension getPreferredSize() {
+                Dimension d = super.getPreferredSize();
+                int targetWidth = getParent() != null ? getParent().getWidth() - 20 : 0;
+                if (targetWidth > 0 && d.width > targetWidth) {
+                    int rows = (int) Math.ceil((double) d.width / targetWidth);
+                    return new Dimension(targetWidth, Math.max(d.height, rows * 44));
+                }
+                return d;
+            }
+        };
         toolBar.setBackground(CARD_BG);
         toolBar.setBorder(BorderFactory.createCompoundBorder(
                 BorderFactory.createLineBorder(BORDER_WARM, 1),
-                new EmptyBorder(10, 14, 10, 14)
+                new EmptyBorder(8, 12, 8, 12)
         ));
 
-        toolBar.add(createFilterButton("Làm mới danh sách", this::loadMyBookings));
+        toolBar.add(createFilterButton("Làm mới", this::loadMyBookings));
 
-        JButton btnCancel = new JButton("Hủy lịch họp đã chọn");
+        JButton btnCancel = new JButton("Hủy lịch");
+        btnCancel.setToolTipText("Hủy bỏ lịch họp đã chọn");
         btnCancel.setFont(new Font("Segoe UI", Font.BOLD, 12));
         btnCancel.setBackground(new Color(254, 242, 242));
         btnCancel.setForeground(DANGER);
         btnCancel.setFocusPainted(false);
         btnCancel.setBorder(BorderFactory.createCompoundBorder(
                 BorderFactory.createLineBorder(new Color(254, 202, 202), 1),
-                new EmptyBorder(6, 12, 6, 12)
+                new EmptyBorder(6, 10, 6, 10)
         ));
         btnCancel.setCursor(new Cursor(Cursor.HAND_CURSOR));
         btnCancel.addActionListener(e -> doCancelSelectedBooking());
         toolBar.add(btnCancel);
 
-        JButton btnEarlyRelease = new JButton("\u2714  Tr\u1EA3 ph\u00F2ng s\u1EDBm (Gi\u1EA3i ph\u00F3ng ph\u00F2ng)");
-        btnEarlyRelease.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 12));
+        JButton btnEarlyRelease = new JButton("Trả phòng sớm");
+        btnEarlyRelease.setToolTipText("Trả phòng sớm - Giải phóng phòng họp ngay lập tức");
+        btnEarlyRelease.setIcon(AppIcon.check(14, new Color(22, 101, 52)));
+        btnEarlyRelease.setIconTextGap(6);
+        btnEarlyRelease.setFont(new Font("Segoe UI", Font.BOLD, 12));
         btnEarlyRelease.setBackground(new Color(240, 253, 244));
         btnEarlyRelease.setForeground(new Color(22, 101, 52));
         btnEarlyRelease.setFocusPainted(false);
         btnEarlyRelease.setBorder(BorderFactory.createCompoundBorder(
                 BorderFactory.createLineBorder(new Color(187, 247, 208), 1),
-                new EmptyBorder(6, 12, 6, 12)
+                new EmptyBorder(6, 10, 6, 10)
         ));
         btnEarlyRelease.setCursor(new Cursor(Cursor.HAND_CURSOR));
         btnEarlyRelease.addActionListener(e -> doReleaseSelectedBookingEarly());
         toolBar.add(btnEarlyRelease);
 
-        JButton btnExtend = new JButton("\u23F1  Gia h\u1EA1n gi\u1EDD h\u1ECDp (+30p)");
-        btnExtend.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 12));
+        JButton btnExtend = new JButton("Gia hạn (+30p)");
+        btnExtend.setToolTipText("Gia hạn thêm 30 phút cho lịch họp đang chọn");
+        btnExtend.setIcon(AppIcon.clock(14, ACCENT_TERRA));
+        btnExtend.setIconTextGap(6);
+        btnExtend.setFont(new Font("Segoe UI", Font.BOLD, 12));
         btnExtend.setBackground(new Color(254, 243, 235));
         btnExtend.setForeground(ACCENT_TERRA);
         btnExtend.setFocusPainted(false);
         btnExtend.setBorder(BorderFactory.createCompoundBorder(
                 BorderFactory.createLineBorder(new Color(254, 215, 195), 1),
-                new EmptyBorder(6, 12, 6, 12)
+                new EmptyBorder(6, 10, 6, 10)
         ));
         btnExtend.setCursor(new Cursor(Cursor.HAND_CURSOR));
         btnExtend.addActionListener(e -> doExtendSelectedBooking());
         toolBar.add(btnExtend);
+
+        JButton btnSendReminder = new JButton("Gửi mail nhắc nhở");
+        btnSendReminder.setToolTipText("Gửi email nhắc nhở/thông báo trực tiếp cho các thành viên tham gia");
+        btnSendReminder.setIcon(AppIcon.mail(14, new Color(107, 33, 168)));
+        btnSendReminder.setIconTextGap(6);
+        btnSendReminder.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        btnSendReminder.setBackground(new Color(243, 232, 255));
+        btnSendReminder.setForeground(new Color(107, 33, 168));
+        btnSendReminder.setFocusPainted(false);
+        btnSendReminder.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(new Color(216, 180, 254), 1),
+                new EmptyBorder(6, 10, 6, 10)
+        ));
+        btnSendReminder.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        btnSendReminder.addActionListener(e -> doSendManualEmailReminder());
+        toolBar.add(btnSendReminder);
 
         JPanel topArea = new JPanel(new BorderLayout(0, 10));
         topArea.setOpaque(false);
@@ -554,6 +624,69 @@ public class MainDashboard extends JFrame {
         return panel;
     }
 
+    // ========== TAB: ADMIN USERS & ROLES ==========
+    private JPanel createAdminUsersTab() {
+        JPanel panel = new JPanel(new BorderLayout(0, 14));
+        panel.setBackground(BG_WARM);
+        panel.setBorder(new EmptyBorder(22, 22, 18, 22));
+
+        JLabel lblPageTitle = new JLabel("Quản Lý Nhân Viên & Phân Quyền (Admin)");
+        lblPageTitle.setFont(new Font("Segoe UI", Font.BOLD, 22));
+        lblPageTitle.setForeground(TEXT_PRIMARY);
+
+        JPanel toolBar = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 0));
+        toolBar.setBackground(CARD_BG);
+        toolBar.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(BORDER_WARM, 1),
+                new EmptyBorder(10, 14, 10, 14)
+        ));
+
+        JButton btnAddUser = new JButton("Tạo Tài Khoản Cấp Dưới");
+        btnAddUser.setIcon(AppIcon.addUser(14, Color.WHITE));
+        btnAddUser.setIconTextGap(8);
+        btnAddUser.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        btnAddUser.setBackground(ACCENT_FOREST);
+        btnAddUser.setForeground(Color.WHITE);
+        btnAddUser.setFocusPainted(false);
+        btnAddUser.setBorder(new EmptyBorder(7, 14, 7, 14));
+        btnAddUser.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        btnAddUser.addActionListener(e -> openCreateUserDialog());
+        toolBar.add(btnAddUser);
+
+        JButton btnSetRole = new JButton("Phân Quyền (Set Role)");
+        btnSetRole.setIcon(AppIcon.lightning(14, ACCENT_TERRA));
+        btnSetRole.setIconTextGap(8);
+        btnSetRole.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        btnSetRole.setBackground(new Color(254, 243, 235));
+        btnSetRole.setForeground(ACCENT_TERRA);
+        btnSetRole.setFocusPainted(false);
+        btnSetRole.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(new Color(254, 215, 195), 1),
+                new EmptyBorder(6, 12, 6, 12)
+        ));
+        btnSetRole.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        btnSetRole.addActionListener(e -> doSetUserRole());
+        toolBar.add(btnSetRole);
+
+        toolBar.add(createFilterButton("Làm mới danh sách", this::loadAdminUsers));
+
+        JPanel topArea = new JPanel(new BorderLayout(0, 10));
+        topArea.setOpaque(false);
+        topArea.add(lblPageTitle, BorderLayout.NORTH);
+        topArea.add(toolBar, BorderLayout.CENTER);
+        panel.add(topArea, BorderLayout.NORTH);
+
+        String[] cols = {"ID", "Tên đăng nhập", "Họ và tên", "Email công ty", "Phòng ban", "Vai trò (Role)"};
+        adminUserTableModel = new DefaultTableModel(cols, 0) {
+            @Override
+            public boolean isCellEditable(int row, int col) { return false; }
+        };
+        tblAdminUsers = createStyledTable(adminUserTableModel);
+        panel.add(createStyledScrollPane(tblAdminUsers, null), BorderLayout.CENTER);
+
+        return panel;
+    }
+
     // ========== TAB 4: INTERNAL CHAT (TCP REAL-TIME) ==========
     private JPanel createChatTab() {
         JPanel panel = new JPanel(new BorderLayout(0, 14));
@@ -564,8 +697,8 @@ public class MainDashboard extends JFrame {
         JPanel topHeader = new JPanel(new BorderLayout(0, 6));
         topHeader.setOpaque(false);
 
-        JLabel lblPageTitle = new JLabel("K\u00EAnh Trao \u0110\u1ED5i N\u1ED9i B\u1ED9 & Th\u1EA3o Lu\u1EADn (TCP Socket)");
-        lblPageTitle.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 22));
+        JLabel lblPageTitle = new JLabel("Kênh Trao Đổi Nội Bộ & Thảo Luận (TCP Socket)");
+        lblPageTitle.setFont(new Font("Segoe UI", Font.BOLD, 22));
         lblPageTitle.setForeground(TEXT_PRIMARY);
 
         JLabel lblSub = new JLabel("Trao đổi thông tin trực tiếp theo thời gian thực (Real-time Broadcast) về công tác chuẩn bị phòng họp, tài liệu, thiết bị.");
@@ -615,7 +748,7 @@ public class MainDashboard extends JFrame {
         ));
         txtChatInput.addActionListener(e -> doSendChatMessage());
 
-        btnSendChat = new JButton("G\u1EEDi \u27A4") {
+        btnSendChat = new JButton("Gửi") {
             @Override
             protected void paintComponent(Graphics g) {
                 Graphics2D g2 = (Graphics2D) g.create();
@@ -627,8 +760,10 @@ public class MainDashboard extends JFrame {
                 super.paintComponent(g);
             }
         };
-        btnSendChat.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 13));
+        btnSendChat.setFont(new Font("Segoe UI", Font.BOLD, 13));
         btnSendChat.setForeground(Color.WHITE);
+        btnSendChat.setIcon(AppIcon.send(14, Color.WHITE));
+        btnSendChat.setIconTextGap(6);
         btnSendChat.setContentAreaFilled(false);
         btnSendChat.setFocusPainted(false);
         btnSendChat.setBorderPainted(false);
@@ -746,6 +881,9 @@ public class MainDashboard extends JFrame {
             loadBookingsByDate();
             loadMyBookings();
             loadRooms();
+            if (currentUser.isAdmin()) {
+                loadAdminUsers();
+            }
 
             String time = java.time.LocalTime.now().format(java.time.format.DateTimeFormatter.ofPattern("HH:mm:ss"));
             String notifText = "[" + time + "] " + res.getMessage();
@@ -759,8 +897,9 @@ public class MainDashboard extends JFrame {
                 // Hiển thị dialog nhắc nhở nổi bật
                 JOptionPane.showMessageDialog(this,
                         res.getMessage(),
-                        "\u23F0 NH\u1EAEC NH\u1EDE L\u1ECACH H\u1ECCAP S\u1EAEP DI\u1EC4N RA",
-                        JOptionPane.WARNING_MESSAGE);
+                        "NHẮC NHỞ LỊCH HỌP SẮP DIỄN RA",
+                        JOptionPane.WARNING_MESSAGE,
+                        AppIcon.clock(36, ACCENT_TERRA));
             } else if (res.getAction() == ActionType.INVITATION_NOTIFICATION) {
                 // Phát tiếng beep cảnh báo
                 java.awt.Toolkit.getDefaultToolkit().beep();
@@ -768,12 +907,14 @@ public class MainDashboard extends JFrame {
                 // Hiển thị thông báo nhận lời mời tham gia họp
                 JOptionPane.showMessageDialog(this,
                         res.getMessage(),
-                        "\uD83D\uDCE9 L\u1EDCI M\u1EDEI THAM GIA H\u1ECCAP M\u1EDAI (TCP ALERT)",
-                        JOptionPane.INFORMATION_MESSAGE);
+                        "LỜI MỜI THAM GIA HỌP MỚI",
+                        JOptionPane.INFORMATION_MESSAGE,
+                        AppIcon.mail(36, ACCENT_FOREST));
             }
         }));
 
         client.setDisconnectListener(() -> SwingUtilities.invokeLater(() -> {
+            if (isLoggingOut) return;
             JOptionPane.showMessageDialog(this,
                     "Mất kết nối tới Máy chủ TCP! Ứng dụng sẽ đóng.",
                     "Lỗi mạng", JOptionPane.ERROR_MESSAGE);
@@ -784,7 +925,9 @@ public class MainDashboard extends JFrame {
 
     private void updateNotificationBadge() {
         if (btnNotifications != null) {
-            btnNotifications.setText("\uD83D\uDD14 Th\u00F4ng b\u00E1o (" + notificationHistory.size() + ")");
+            btnNotifications.setText("Thông báo (" + notificationHistory.size() + ")");
+            btnNotifications.setIcon(AppIcon.bell(14, ACCENT_TERRA));
+            btnNotifications.setIconTextGap(6);
         }
     }
 
@@ -797,8 +940,10 @@ public class MainDashboard extends JFrame {
         p.setBackground(BG_WARM);
         p.setBorder(new EmptyBorder(16, 16, 16, 16));
 
-        JLabel title = new JLabel("\uD83D\uDD14  Danh sách thông báo trong phiên làm việc");
-        title.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 14));
+        JLabel title = new JLabel("Danh sách thông báo trong phiên làm việc");
+        title.setIcon(AppIcon.bell(18, ACCENT_FOREST));
+        title.setIconTextGap(8);
+        title.setFont(new Font("Segoe UI", Font.BOLD, 14));
         title.setForeground(ACCENT_FOREST);
         p.add(title, BorderLayout.NORTH);
 
@@ -852,6 +997,9 @@ public class MainDashboard extends JFrame {
         loadRooms();
         loadBookingsByDate();
         loadMyBookings();
+        if (currentUser.isAdmin()) {
+            loadAdminUsers();
+        }
     }
 
     private void loadRooms() {
@@ -909,6 +1057,7 @@ public class MainDashboard extends JFrame {
             Response res = client.sendRequest(req);
             if (res != null && res.isSuccess()) {
                 List<Booking> list = JsonUtil.fromJson(res.getData(), new TypeToken<List<Booking>>() {}.getType());
+                cachedMyBookings = list;
                 SwingUtilities.invokeLater(() -> {
                     myBookingTableModel.setRowCount(0);
                     for (Booking b : list) {
@@ -1054,6 +1203,126 @@ public class MainDashboard extends JFrame {
                 });
             }).start();
         }
+    }
+
+    private void doSendManualEmailReminder() {
+        int row = tblMyBookings.getSelectedRow();
+        if (row < 0) {
+            JOptionPane.showMessageDialog(this, "Vui lòng chọn 1 lịch họp trong bảng để gửi email nhắc nhở!", "Thông báo", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
+        int bookingId = (int) myBookingTableModel.getValueAt(row, 0);
+        String status = (String) myBookingTableModel.getValueAt(row, 5);
+
+        if ("CANCELLED".equalsIgnoreCase(status)) {
+            JOptionPane.showMessageDialog(this, "Lịch họp này đã bị hủy, không thể gửi email nhắc nhở!", "Thông báo", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
+        Booking selected = null;
+        if (cachedMyBookings != null) {
+            for (Booking b : cachedMyBookings) {
+                if (b.getId() == bookingId) {
+                    selected = b;
+                    break;
+                }
+            }
+        }
+
+        if (selected == null) {
+            JOptionPane.showMessageDialog(this, "Không tìm thấy dữ liệu chi tiết của lịch họp!", "Lỗi", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+
+        ManualReminderDialog dialog = new ManualReminderDialog(this, client, currentUser, selected);
+        dialog.setVisible(true);
+    }
+
+    private void openUserProfileDialog() {
+        UserProfileDialog dlg = new UserProfileDialog(this, client, currentUser, updatedUser -> {
+            this.currentUser = updatedUser;
+            updateUserHeader();
+        });
+        dlg.setVisible(true);
+    }
+
+    private void updateUserHeader() {
+        if (lblUserName != null) lblUserName.setText(currentUser.getFullName());
+        if (lblDept != null) lblDept.setText(currentUser.getDepartment() + " • " + currentUser.getRole());
+        setTitle("Meeting Room Booking — [" + currentUser.getFullName() + " - " + currentUser.getRole() + "]");
+    }
+
+    private void openCreateUserDialog() {
+        CreateUserDialog dlg = new CreateUserDialog(this, client, currentUser, this::loadAdminUsers);
+        dlg.setVisible(true);
+    }
+
+    private void doSetUserRole() {
+        int row = tblAdminUsers.getSelectedRow();
+        if (row < 0) {
+            JOptionPane.showMessageDialog(this, "Vui lòng chọn một nhân viên trong bảng để phân quyền!", "Thông báo", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
+        int targetId = (int) adminUserTableModel.getValueAt(row, 0);
+        String username = (String) adminUserTableModel.getValueAt(row, 1);
+        String currentRole = (String) adminUserTableModel.getValueAt(row, 5);
+
+        String[] roles = {"EMPLOYEE", "MANAGER", "ADMIN"};
+        String selectedRole = (String) JOptionPane.showInputDialog(this,
+                "Chọn vai trò mới cho tài khoản '" + username + "' (Hiện tại: " + currentRole + "):",
+                "Phân Quyền Nhân Sự (Set Role)",
+                JOptionPane.QUESTION_MESSAGE,
+                null,
+                roles,
+                currentRole);
+
+        if (selectedRole != null && !selectedRole.equals(currentRole)) {
+            new Thread(() -> {
+                Map<String, String> data = new HashMap<>();
+                data.put("userId", String.valueOf(targetId));
+                data.put("role", selectedRole);
+
+                Request req = new Request(ActionType.UPDATE_USER_ROLE, JsonUtil.toJson(data), currentUser.getId());
+                Response res = client.sendRequest(req);
+                SwingUtilities.invokeLater(() -> {
+                    if (res != null && res.isSuccess()) {
+                        JOptionPane.showMessageDialog(this, res.getMessage(), "Thành công", JOptionPane.INFORMATION_MESSAGE);
+                        loadAdminUsers();
+                    } else {
+                        String msg = res != null ? res.getMessage() : "Lỗi khi cập nhật vai trò!";
+                        JOptionPane.showMessageDialog(this, msg, "Lỗi phân quyền", JOptionPane.ERROR_MESSAGE);
+                    }
+                });
+            }).start();
+        }
+    }
+
+    private void loadAdminUsers() {
+        if (!currentUser.isAdmin()) return;
+        new Thread(() -> {
+            Request req = new Request(ActionType.GET_ALL_USERS);
+            Response res = client.sendRequest(req);
+            if (res != null && res.isSuccess()) {
+                List<User> list = JsonUtil.fromJson(res.getData(), new TypeToken<List<User>>() {}.getType());
+                SwingUtilities.invokeLater(() -> {
+                    if (adminUserTableModel != null) {
+                        adminUserTableModel.setRowCount(0);
+                        for (User u : list) {
+                            adminUserTableModel.addRow(new Object[]{
+                                    u.getId(),
+                                    u.getUsername(),
+                                    u.getFullName(),
+                                    u.getEmail() != null && !u.getEmail().isEmpty() ? u.getEmail() : "(Chưa có)",
+                                    u.getDepartment(),
+                                    u.getRole()
+                            });
+                        }
+                    }
+                });
+            }
+        }).start();
     }
 
     private void doSendChatMessage() {
@@ -1227,8 +1496,15 @@ public class MainDashboard extends JFrame {
     }
 
     private void doLogout() {
-        client.sendRequest(new Request(ActionType.LOGOUT));
-        client.disconnect();
+        if (isLoggingOut) return;
+        isLoggingOut = true;
+        client.setDisconnectListener(null);
+        new Thread(() -> {
+            try {
+                client.sendRequest(new Request(ActionType.LOGOUT));
+            } catch (Exception ignored) {}
+            client.disconnect();
+        }).start();
         dispose();
         new LoginForm().setVisible(true);
     }

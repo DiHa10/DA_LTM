@@ -153,6 +153,82 @@ public class ClientHandler implements Runnable {
                     return Response.success("Lấy danh sách người dùng thành công", ActionType.GET_ALL_USERS, JsonUtil.toJson(users));
                 }
 
+                case CREATE_USER -> {
+                    if (currentUser == null || !currentUser.isAdmin()) {
+                        return Response.error("Chỉ Quản trị viên mới có quyền tạo tài khoản cho nhân viên!");
+                    }
+                    Map<String, Object> map = JsonUtil.fromJson(request.getData(), new TypeToken<Map<String, Object>>() {}.getType());
+                    User newUser = new User();
+                    newUser.setUsername((String) map.get("username"));
+                    newUser.setPassword((String) map.get("password"));
+                    newUser.setFullName((String) map.get("fullName"));
+                    newUser.setRole((String) map.get("role"));
+                    newUser.setDepartment((String) map.get("department"));
+                    newUser.setEmail((String) map.get("email"));
+                    boolean sendEmail = Boolean.TRUE.equals(map.get("sendEmail"));
+
+                    Response res = bookingService.createUser(newUser, sendEmail);
+                    if (res.isSuccess()) {
+                        serverManager.log("[TẠO TÀI KHOẢN] Quản trị viên tạo user: " + newUser.getUsername() + " (" + newUser.getRole() + ")");
+                        serverManager.broadcast(new Response(Response.SUCCESS, "Danh sách nhân viên vừa được cập nhật!", ActionType.BROADCAST_UPDATE, "USERS_UPDATED"));
+                    }
+                    return res;
+                }
+
+                case UPDATE_USER_ROLE -> {
+                    if (currentUser == null || !currentUser.isAdmin()) {
+                        return Response.error("Chỉ Quản trị viên mới có quyền phân quyền vai trò!");
+                    }
+                    Map<String, String> map = JsonUtil.fromJson(request.getData(), new TypeToken<Map<String, String>>() {}.getType());
+                    int targetUserId = Integer.parseInt(map.get("userId"));
+                    String newRole = map.get("role");
+                    Response res = bookingService.updateUserRole(targetUserId, newRole, currentUser.getId());
+                    if (res.isSuccess()) {
+                        serverManager.log("[PHÂN QUYỀN] Admin cập nhật quyền cho User ID=" + targetUserId + " -> " + newRole);
+                        serverManager.broadcast(new Response(Response.SUCCESS, "Danh sách nhân viên vừa được cập nhật!", ActionType.BROADCAST_UPDATE, "USERS_UPDATED"));
+                    }
+                    return res;
+                }
+
+                case UPDATE_PROFILE -> {
+                    if (currentUser == null) {
+                        return Response.error("Bạn chưa đăng nhập!");
+                    }
+                    Map<String, String> map = JsonUtil.fromJson(request.getData(), new TypeToken<Map<String, String>>() {}.getType());
+                    String fullName = map.get("fullName");
+                    String email = map.get("email");
+                    String department = map.get("department");
+                    Response res = bookingService.updateProfile(currentUser.getId(), fullName, email, department);
+                    if (res.isSuccess()) {
+                        User updated = JsonUtil.fromJson(res.getData(), User.class);
+                        this.currentUser = updated;
+                        serverManager.log("[CẬP NHẬT HỒ SƠ] User ID=" + currentUser.getId() + " (" + currentUser.getUsername() + ")");
+                        serverManager.broadcast(new Response(Response.SUCCESS, "Thông tin nhân sự vừa được cập nhật!", ActionType.BROADCAST_UPDATE, "USERS_UPDATED"));
+                    }
+                    return res;
+                }
+
+                case CHANGE_PASSWORD -> {
+                    if (currentUser == null) {
+                        return Response.error("Bạn chưa đăng nhập!");
+                    }
+                    Map<String, String> map = JsonUtil.fromJson(request.getData(), new TypeToken<Map<String, String>>() {}.getType());
+                    String oldPass = map.get("oldPassword");
+                    String newPass = map.get("newPassword");
+                    return bookingService.changePassword(currentUser.getId(), oldPass, newPass);
+                }
+
+                case SEND_MANUAL_EMAIL_REMINDER -> {
+                    if (currentUser == null) {
+                        return Response.error("Bạn chưa đăng nhập!");
+                    }
+                    Map<String, String> map = JsonUtil.fromJson(request.getData(), new TypeToken<Map<String, String>>() {}.getType());
+                    int bookingId = Integer.parseInt(map.get("bookingId"));
+                    String customNote = map.get("customNote");
+                    boolean isAdmin = currentUser.isAdmin();
+                    return bookingService.sendManualReminderEmail(bookingId, currentUser.getId(), isAdmin, customNote);
+                }
+
                 case BOOK_ROOM -> {
                     Booking booking = JsonUtil.fromJson(request.getData(), Booking.class);
                     if (currentUser != null) {
