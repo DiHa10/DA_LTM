@@ -143,7 +143,7 @@ public class EmailService {
 
                 String subject = String.format("[THÔNG BÁO HỌP] Cuộc họp tại [%s] lúc %s ngày %s",
                         booking.getRoomName() != null ? booking.getRoomName() : "Phòng họp",
-                        booking.getStartTime(), booking.getBookingDate());
+                        booking.getStartTime(), com.meeting.common.util.DateUtil.toUiDate(booking.getBookingDate()));
 
                 String htmlBody = String.format("""
                     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #E5E0D8; border-radius: 8px; background-color: #FAF9F6;">
@@ -161,7 +161,7 @@ public class EmailService {
                     </div>
                 """,
                         booking.getRoomName(),
-                        booking.getStartTime(), booking.getEndTime(), booking.getBookingDate(),
+                        booking.getStartTime(), booking.getEndTime(), com.meeting.common.util.DateUtil.toUiDate(booking.getBookingDate()),
                         host != null ? host.getFullName() : booking.getUserFullName(),
                         host != null ? host.getDepartment() : booking.getDepartment(),
                         booking.getPurpose());
@@ -198,7 +198,7 @@ public class EmailService {
             try {
                 String subject = String.format("[NHẮC NHỞ TỪ CHỦ PHÒNG] Cuộc họp tại [%s] lúc %s ngày %s",
                         booking.getRoomName() != null ? booking.getRoomName() : "Phòng họp",
-                        booking.getStartTime(), booking.getBookingDate());
+                        booking.getStartTime(), com.meeting.common.util.DateUtil.toUiDate(booking.getBookingDate()));
 
                 String noteHtml = "";
                 if (customNote != null && !customNote.trim().isEmpty()) {
@@ -229,7 +229,7 @@ public class EmailService {
                         host != null ? host.getFullName() : "Chủ trì",
                         booking.getRoomName(),
                         booking.getStartTime(), booking.getEndTime(),
-                        booking.getBookingDate(),
+                        com.meeting.common.util.DateUtil.toUiDate(booking.getBookingDate()),
                         booking.getPurpose(),
                         noteHtml);
 

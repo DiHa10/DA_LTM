@@ -95,7 +95,7 @@ public class ManualReminderDialog extends JDialog {
         lblRoom.setFont(new Font("Segoe UI", Font.BOLD, 13));
         lblRoom.setForeground(ACCENT_TERRA);
 
-        JLabel lblTime = new JLabel("• Thời gian: " + booking.getStartTime() + " - " + booking.getEndTime() + " (Ngày " + booking.getBookingDate() + ")");
+        JLabel lblTime = new JLabel("• Thời gian: " + booking.getStartTime() + " - " + booking.getEndTime() + " (Ngày " + com.meeting.common.util.DateUtil.toUiDate(booking.getBookingDate()) + ")");
         lblTime.setFont(new Font("Segoe UI", Font.PLAIN, 12));
 
         JLabel lblPurpose = new JLabel("• Mục đích: " + (booking.getPurpose() != null ? booking.getPurpose() : "Họp nội bộ"));

@@ -21,7 +21,7 @@ public class BookingDao {
         """;
         try (Connection conn = DatabaseManager.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setString(1, date);
+            ps.setString(1, com.meeting.common.util.DateUtil.toDbDate(date));
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
                     list.add(extractBooking(rs));
@@ -41,11 +41,13 @@ public class BookingDao {
             JOIN rooms r ON b.room_id = r.id
             JOIN users u ON b.user_id = u.id
             WHERE b.user_id = ?
+               OR (b.invited_users IS NOT NULL AND (',' || b.invited_users || ',') LIKE ('%,' || ? || ',%'))
             ORDER BY b.booking_date DESC, b.start_time DESC
         """;
         try (Connection conn = DatabaseManager.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setInt(1, userId);
+            ps.setInt(2, userId);
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
                     list.add(extractBooking(rs));
@@ -77,7 +79,7 @@ public class BookingDao {
         try (Connection conn = DatabaseManager.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setInt(1, roomId);
-            ps.setString(2, date);
+            ps.setString(2, com.meeting.common.util.DateUtil.toDbDate(date));
             ps.setString(3, newEndTime);
             ps.setString(4, newStartTime);
 
@@ -101,7 +103,7 @@ public class BookingDao {
              PreparedStatement ps = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
             ps.setInt(1, booking.getRoomId());
             ps.setInt(2, booking.getUserId());
-            ps.setString(3, booking.getBookingDate());
+            ps.setString(3, com.meeting.common.util.DateUtil.toDbDate(booking.getBookingDate()));
             ps.setString(4, booking.getStartTime());
             ps.setString(5, booking.getEndTime());
             ps.setString(6, booking.getPurpose());

@@ -93,6 +93,36 @@ public class RoomDao {
         return false;
     }
 
+    public List<Room> findAvailableRooms(String date, String startTime, String endTime) {
+        List<Room> list = new ArrayList<>();
+        String sql = """
+            SELECT * FROM rooms
+            WHERE status = 'AVAILABLE'
+              AND id NOT IN (
+                  SELECT room_id FROM bookings
+                  WHERE booking_date = ?
+                    AND status = 'CONFIRMED'
+                    AND start_time < ?
+                    AND end_time > ?
+              )
+            ORDER BY capacity ASC, name ASC
+        """;
+        try (Connection conn = DatabaseManager.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, com.meeting.common.util.DateUtil.toDbDate(date));
+            ps.setString(2, endTime);
+            ps.setString(3, startTime);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    list.add(extractRoom(rs));
+                }
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return list;
+    }
+
     private Room extractRoom(ResultSet rs) throws SQLException {
         return new Room(
                 rs.getInt("id"),

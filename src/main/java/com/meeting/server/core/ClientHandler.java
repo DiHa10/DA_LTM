@@ -241,7 +241,7 @@ public class ClientHandler implements Runnable {
                         // Broadcast tới toàn bộ các Client khác để họ tự động reload bảng lịch
                         serverManager.broadcast(new Response(Response.SUCCESS, "Có lịch đặt phòng mới!", ActionType.BROADCAST_UPDATE, "SCHEDULE_UPDATED"));
 
-                        // Gửi thông báo Lời mời họp trực tiếp qua mạng TCP tới các đồng nghiệp được mời
+                        // Gửi thông báo Lời mời họp trực tiếp qua mạng TCP và LƯU VÀO CSDL
                         if (booking.getInvitedUsers() != null && !booking.getInvitedUsers().trim().isEmpty()) {
                             String[] userIds = booking.getInvitedUsers().split(",");
                             for (String uIdStr : userIds) {
@@ -253,7 +253,18 @@ public class ClientHandler implements Runnable {
                                             booking.getPurpose(),
                                             booking.getRoomName() != null ? booking.getRoomName() : ("Phòng ID=" + booking.getRoomId()),
                                             booking.getTimeSlot(),
-                                            booking.getBookingDate());
+                                            com.meeting.common.util.DateUtil.toUiDate(booking.getBookingDate()));
+
+                                    // 1. Lưu bản ghi vào CSDL SQLite để người dùng mở app lúc nào cũng thấy
+                                    bookingService.getNotificationDao().insertNotification(
+                                            targetId,
+                                            "Lời mời tham gia họp",
+                                            invMsg,
+                                            "INVITATION",
+                                            booking.getId()
+                                    );
+
+                                    // 2. Gửi thời gian thực qua TCP nếu đang online
                                     Response invResp = new Response(Response.SUCCESS, invMsg, ActionType.INVITATION_NOTIFICATION, JsonUtil.toJson(booking));
                                     boolean sent = serverManager.sendToUser(targetId, invResp);
                                     if (sent) {
@@ -312,6 +323,27 @@ public class ClientHandler implements Runnable {
                         serverManager.broadcast(new Response(Response.SUCCESS, "Một cuộc họp vừa được gia hạn thêm giờ!", ActionType.BROADCAST_UPDATE, "SCHEDULE_UPDATED"));
                     }
                     return res;
+                }
+
+                case GET_NOTIFICATIONS -> {
+                    int userId = (currentUser != null) ? currentUser.getId() : request.getUserId();
+                    List<com.meeting.common.model.Notification> notifs = bookingService.getNotificationDao().getNotificationsByUser(userId);
+                    return Response.success("Tải danh sách thông báo thành công", ActionType.GET_NOTIFICATIONS, JsonUtil.toJson(notifs));
+                }
+
+                case MARK_NOTIFICATION_READ -> {
+                    int userId = (currentUser != null) ? currentUser.getId() : request.getUserId();
+                    bookingService.getNotificationDao().markAllAsRead(userId);
+                    return Response.success("Đã đánh dấu đã đọc");
+                }
+
+                case FIND_AVAILABLE_ROOMS -> {
+                    Map<String, String> map = JsonUtil.fromJson(request.getData(), new TypeToken<Map<String, String>>() {}.getType());
+                    String date = map.get("date");
+                    String startTime = map.get("startTime");
+                    String endTime = map.get("endTime");
+                    List<Room> freeRooms = bookingService.findAvailableRooms(date, startTime, endTime);
+                    return Response.success("Lọc danh sách phòng trống thành công", ActionType.FIND_AVAILABLE_ROOMS, JsonUtil.toJson(freeRooms));
                 }
 
                 case SEND_CHAT_MESSAGE -> {

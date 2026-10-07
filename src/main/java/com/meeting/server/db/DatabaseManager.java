@@ -69,7 +69,22 @@ public class DatabaseManager {
                 // Đã tồn tại cột
             }
 
-            // 4. Chèn dữ liệu mẫu nếu bảng Users trống
+            // 4. Tạo bảng Notifications (Lưu trữ thông báo mời họp và nhắc nhở)
+            stmt.execute("""
+                CREATE TABLE IF NOT EXISTS notifications (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    user_id INTEGER NOT NULL,
+                    title TEXT NOT NULL,
+                    message TEXT NOT NULL,
+                    type TEXT DEFAULT 'INVITATION',
+                    booking_id INTEGER,
+                    is_read INTEGER DEFAULT 0,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (user_id) REFERENCES users(id)
+                );
+            """);
+
+            // 5. Chèn dữ liệu mẫu nếu bảng Users trống
             var rsUsers = stmt.executeQuery("SELECT COUNT(*) FROM users;");
             if (rsUsers.next() && rsUsers.getInt(1) == 0) {
                 stmt.execute("""

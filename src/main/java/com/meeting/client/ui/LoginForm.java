@@ -105,27 +105,11 @@ public class LoginForm extends JFrame {
         lblBrand2.setForeground(new Color(245, 243, 239, 210));
         lblBrand2.setAlignmentX(Component.CENTER_ALIGNMENT);
 
-        JLabel lblDesc = new JLabel("<html><div style='text-align:center;width:250px;'>Hệ thống đặt lịch phòng họp thông minh<br>qua giao thức TCP Socket đa luồng</div></html>");
-        lblDesc.setFont(new Font("Segoe UI", Font.PLAIN, 13));
-        lblDesc.setForeground(new Color(245, 243, 239, 190));
-        lblDesc.setAlignmentX(Component.CENTER_ALIGNMENT);
-
-        JLabel lblBadge = new JLabel("  ● TCP Socket • Thread • Synchronized  ");
-        lblBadge.setFont(new Font("Segoe UI", Font.BOLD, 11));
-        lblBadge.setForeground(new Color(245, 243, 239));
-        lblBadge.setOpaque(true);
-        lblBadge.setBackground(new Color(255, 255, 255, 30));
-        lblBadge.setBorder(new EmptyBorder(5, 12, 5, 12));
-        lblBadge.setAlignmentX(Component.CENTER_ALIGNMENT);
-
         brandContent.add(lblIcon);
-        brandContent.add(Box.createVerticalStrut(12));
+        brandContent.add(Box.createVerticalStrut(18));
         brandContent.add(lblBrand);
+        brandContent.add(Box.createVerticalStrut(4));
         brandContent.add(lblBrand2);
-        brandContent.add(Box.createVerticalStrut(14));
-        brandContent.add(lblDesc);
-        brandContent.add(Box.createVerticalStrut(22));
-        brandContent.add(lblBadge);
         brandPanel.add(brandContent);
 
         // ===== BÊN PHẢI: Card đăng nhập Kem Sữa & Terracotta =====

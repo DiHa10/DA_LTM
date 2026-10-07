@@ -29,6 +29,11 @@ public enum ActionType {
 
     // Thông báo & Email nhắc nhở
     SEND_MANUAL_EMAIL_REMINDER, // Chủ phòng kích hoạt gửi email nhắc nhở thủ công
+    GET_NOTIFICATIONS,          // Tải danh sách thông báo đã lưu trong CSDL
+    MARK_NOTIFICATION_READ,     // Đánh dấu đã đọc thông báo
+
+    // Tra cứu phòng trống
+    FIND_AVAILABLE_ROOMS,       // Lọc danh sách phòng trống theo khung giờ
 
     // Kênh chat nhanh nội bộ qua TCP
     SEND_CHAT_MESSAGE,

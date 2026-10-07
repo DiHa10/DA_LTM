@@ -7,6 +7,7 @@ import com.meeting.common.protocol.ActionType;
 import com.meeting.common.protocol.JsonUtil;
 import com.meeting.common.protocol.Response;
 import com.meeting.server.dao.BookingDao;
+import com.meeting.server.dao.NotificationDao;
 import com.meeting.server.dao.RoomDao;
 import com.meeting.server.dao.UserDao;
 
@@ -16,10 +17,19 @@ public class BookingService {
     private final UserDao userDao = new UserDao();
     private final RoomDao roomDao = new RoomDao();
     private final BookingDao bookingDao = new BookingDao();
+    private final NotificationDao notificationDao = new NotificationDao();
     private final EmailService emailService = new EmailService();
 
     // Khóa đồng bộ dùng cho việc tranh chấp tài nguyên đặt phòng
     private final Object bookingLock = new Object();
+
+    public NotificationDao getNotificationDao() {
+        return notificationDao;
+    }
+
+    public List<Room> findAvailableRooms(String date, String startTime, String endTime) {
+        return roomDao.findAvailableRooms(date, startTime, endTime);
+    }
 
     public EmailService getEmailService() {
         return emailService;
@@ -274,16 +284,30 @@ public class BookingService {
         if (fullName == null || fullName.trim().isEmpty()) {
             return Response.error("Họ và tên không được để trống!");
         }
-        if (email != null && !email.trim().isEmpty()) {
-            email = email.trim();
-            if (!email.matches("^[A-Za-z0-9+_.-]+@(.+)$")) {
-                return Response.error("Định dạng email không hợp lệ!");
-            }
-            if (userDao.existsByEmail(email, userId)) {
-                return Response.error("Email '" + email + "' đã được sử dụng bởi người dùng khác!");
-            }
+        User existing = userDao.getUserById(userId);
+        if (existing == null) {
+            return Response.error("Không tìm thấy người dùng!");
+        }
+
+        // Hạn chế an toàn: Nhân viên thường chỉ được sửa Họ và tên
+        if (!existing.isAdmin()) {
+            email = existing.getEmail();
+            department = existing.getDepartment();
         } else {
-            email = "";
+            if (email != null && !email.trim().isEmpty()) {
+                email = email.trim();
+                if (!email.matches("^[A-Za-z0-9+_.-]+@(.+)$")) {
+                    return Response.error("Định dạng email không hợp lệ!");
+                }
+                if (userDao.existsByEmail(email, userId)) {
+                    return Response.error("Email '" + email + "' đã được sử dụng bởi người dùng khác!");
+                }
+            } else {
+                email = "";
+            }
+            if (department == null || department.trim().isEmpty()) {
+                department = "Ban Giám Đốc";
+            }
         }
 
         boolean ok = userDao.updateProfile(userId, fullName.trim(), email, department != null ? department.trim() : "Chung");

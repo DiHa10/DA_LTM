@@ -12,12 +12,16 @@ import com.meeting.common.protocol.Response;
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 import com.meeting.client.ui.util.AppIcon;
+import com.meeting.client.ui.util.CalendarPickerPopup;
+import com.meeting.common.util.DateUtil;
 import java.awt.*;
 import java.awt.geom.RoundRectangle2D;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import com.google.gson.reflect.TypeToken;
 
 public class BookingDialog extends JDialog {
@@ -105,13 +109,55 @@ public class BookingDialog extends JDialog {
         for (Room r : roomList) {
             cboRooms.addItem(new RoomWrapper(r));
         }
-        formCard.add(createFormRow("Chọn phòng họp", cboRooms));
+
+        JPanel roomRowPanel = new JPanel(new BorderLayout(8, 0));
+        roomRowPanel.setOpaque(false);
+        roomRowPanel.add(cboRooms, BorderLayout.CENTER);
+
+        JButton btnFilterFree = new JButton("🔍 Tìm phòng trống");
+        btnFilterFree.setToolTipText("Lọc các phòng còn trống theo ngày & khung giờ");
+        btnFilterFree.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        btnFilterFree.setBackground(new Color(240, 253, 244));
+        btnFilterFree.setForeground(new Color(22, 101, 52));
+        btnFilterFree.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(new Color(187, 247, 208), 1),
+                new EmptyBorder(5, 10, 5, 10)
+        ));
+        btnFilterFree.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        btnFilterFree.setFocusPainted(false);
+        btnFilterFree.addActionListener(e -> doFilterAvailableRooms());
+        roomRowPanel.add(btnFilterFree, BorderLayout.EAST);
+
+        formCard.add(createFormRow("Chọn phòng họp", roomRowPanel));
         formCard.add(Box.createVerticalStrut(10));
 
-        // 2. Ngày họp
-        String defaultDate = (initialDate != null && !initialDate.isEmpty()) ? initialDate : LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
+        // 2. Ngày họp (Ngày - Tháng - Năm)
+        String defaultDate = (initialDate != null && !initialDate.isEmpty()) ? DateUtil.toUiDate(initialDate) : DateUtil.todayUi();
+        JPanel dateInputPanel = new JPanel(new BorderLayout(6, 0));
+        dateInputPanel.setOpaque(false);
+        dateInputPanel.setMaximumSize(new Dimension(500, 38));
+
         txtDate = createStyledField(defaultDate);
-        formCard.add(createFormRow("Ngày họp (YYYY-MM-DD)", txtDate));
+        txtDate.setFont(new Font("Segoe UI", Font.BOLD, 13));
+        txtDate.setToolTipText("Nhấp vào đây hoặc nút Lịch để chọn ngày (dd-MM-yyyy)");
+
+        JButton btnPickDate = new JButton();
+        btnPickDate.setIcon(AppIcon.calendar(15, ACCENT_TERRA));
+        btnPickDate.setToolTipText("Mở lịch chọn ngày trực quan (Windows Calendar)");
+        btnPickDate.setBackground(INPUT_BG);
+        btnPickDate.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(BORDER_WARM, 1),
+                new EmptyBorder(5, 8, 5, 8)
+        ));
+        btnPickDate.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        btnPickDate.setFocusPainted(false);
+
+        dateInputPanel.add(txtDate, BorderLayout.CENTER);
+        dateInputPanel.add(btnPickDate, BorderLayout.EAST);
+
+        CalendarPickerPopup.attach(txtDate, btnPickDate, null);
+
+        formCard.add(createFormRow("Ngày họp (Ngày-Tháng-Năm: dd-MM-yyyy)", dateInputPanel));
         formCard.add(Box.createVerticalStrut(10));
 
         String[] timeSlots = generateTimeSlots();
@@ -264,22 +310,25 @@ public class BookingDialog extends JDialog {
             return;
         }
 
-        String date = txtDate.getText().trim();
+        String rawDate = txtDate.getText().trim();
         String startTime = (String) cboStartTime.getSelectedItem();
         String endTime = (String) cboEndTime.getSelectedItem();
         String purpose = txtPurpose.getText().trim();
 
-        if (date.isEmpty() || purpose.isEmpty()) {
+        if (rawDate.isEmpty() || purpose.isEmpty()) {
             JOptionPane.showMessageDialog(this, "Vui lòng điền đầy đủ ngày họp và mục đích!", "Thông báo", JOptionPane.WARNING_MESSAGE);
             return;
         }
 
+        LocalDate chosenLocalDate;
         try {
-            LocalDate.parse(date, DateTimeFormatter.ofPattern("yyyy-MM-dd"));
+            chosenLocalDate = DateUtil.parseLocalDate(rawDate);
         } catch (Exception ex) {
-            JOptionPane.showMessageDialog(this, "Định dạng ngày không hợp lệ! Vui lòng dùng: YYYY-MM-DD (VD: 2026-09-28)", "Lỗi ngày", JOptionPane.ERROR_MESSAGE);
+            JOptionPane.showMessageDialog(this, "Định dạng ngày không hợp lệ! Vui lòng dùng: Ngày-Tháng-Năm (VD: 07-10-2026)", "Lỗi ngày", JOptionPane.ERROR_MESSAGE);
             return;
         }
+        String dbDate = DateUtil.formatDb(chosenLocalDate);
+        String uiDisplayDate = DateUtil.formatUi(chosenLocalDate);
 
         if (startTime.compareTo(endTime) >= 0) {
             JOptionPane.showMessageDialog(this, "Giờ kết thúc (" + endTime + ") phải sau giờ bắt đầu (" + startTime + ")!", "Lỗi thời gian", JOptionPane.ERROR_MESSAGE);
@@ -289,7 +338,7 @@ public class BookingDialog extends JDialog {
         Booking booking = new Booking();
         booking.setRoomId(selected.room.getId());
         booking.setUserId(currentUser.getId());
-        booking.setBookingDate(date);
+        booking.setBookingDate(dbDate);
         booking.setStartTime(startTime);
         booking.setEndTime(endTime);
         booking.setPurpose(purpose);
@@ -328,7 +377,7 @@ public class BookingDialog extends JDialog {
                         JOptionPane.showMessageDialog(BookingDialog.this,
                                 "Chúc mừng! Bạn đã đặt phòng thành công:\n" +
                                         "• Phòng: " + selected.room.getName() + "\n" +
-                                        "• Ngày: " + date + "\n" +
+                                        "• Ngày: " + uiDisplayDate + "\n" +
                                         "• Thời gian: " + startTime + " - " + endTime + inviteExtra,
                                 "Thành công", JOptionPane.INFORMATION_MESSAGE);
                         if (onSuccessCallback != null) {
@@ -348,6 +397,52 @@ public class BookingDialog extends JDialog {
                     JOptionPane.showMessageDialog(BookingDialog.this,
                             "Không nhận được phản hồi từ Server!",
                             "Lỗi", JOptionPane.ERROR_MESSAGE);
+                }
+            });
+        }).start();
+    }
+
+    private void doFilterAvailableRooms() {
+        String rawDate = txtDate.getText().trim();
+        String startTime = (String) cboStartTime.getSelectedItem();
+        String endTime = (String) cboEndTime.getSelectedItem();
+
+        if (startTime.compareTo(endTime) >= 0) {
+            JOptionPane.showMessageDialog(this, "Giờ kết thúc (" + endTime + ") phải sau giờ bắt đầu (" + startTime + ") để tìm phòng trống!", "Lỗi thời gian", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
+        String dbDate = DateUtil.toDbDate(rawDate);
+        Map<String, String> data = new HashMap<>();
+        data.put("date", dbDate);
+        data.put("startTime", startTime);
+        data.put("endTime", endTime);
+
+        new Thread(() -> {
+            Request req = new Request(ActionType.FIND_AVAILABLE_ROOMS, currentUser.getId(), JsonUtil.toJson(data));
+            Response res = client.sendRequest(req);
+            SwingUtilities.invokeLater(() -> {
+                if (res != null && res.isSuccess()) {
+                    List<Room> freeRooms = JsonUtil.fromJson(res.getData(), new TypeToken<List<Room>>() {}.getType());
+                    cboRooms.removeAllItems();
+                    if (freeRooms != null && !freeRooms.isEmpty()) {
+                        for (Room r : freeRooms) {
+                            cboRooms.addItem(new RoomWrapper(r));
+                        }
+                        JOptionPane.showMessageDialog(this,
+                                "Tìm thấy " + freeRooms.size() + " phòng họp còn trống trong khung giờ " + startTime + " - " + endTime + " (ngày " + DateUtil.toUiDate(rawDate) + ")!",
+                                "Phòng khả dụng", JOptionPane.INFORMATION_MESSAGE);
+                    } else {
+                        JOptionPane.showMessageDialog(this,
+                                "Tất cả phòng họp đều đã bận trong khung giờ " + startTime + " - " + endTime + " (ngày " + DateUtil.toUiDate(rawDate) + ")!\nVui lòng chọn khung giờ khác.",
+                                "Không còn phòng trống", JOptionPane.WARNING_MESSAGE);
+                        // Phục hồi lại toàn bộ phòng
+                        for (Room r : roomList) {
+                            cboRooms.addItem(new RoomWrapper(r));
+                        }
+                    }
+                } else {
+                    JOptionPane.showMessageDialog(this, "Lỗi khi tra cứu danh sách phòng trống!", "Lỗi", JOptionPane.ERROR_MESSAGE);
                 }
             });
         }).start();

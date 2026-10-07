@@ -106,16 +106,34 @@ public class MeetingReminderService {
 
         Response pushRes = new Response(Response.SUCCESS, message, ActionType.REMINDER_NOTIFICATION, JsonUtil.toJson(booking));
 
-        // Tìm kiếm socket client của người dùng đang online trên server
-        boolean userOnline = false;
-        for (ClientHandler client : serverManager.getActiveClients()) {
-            if (client.getCurrentUser() != null && client.getCurrentUser().getId() == booking.getUserId()) {
-                client.sendResponse(pushRes);
-                userOnline = true;
+        // Tập hợp danh sách User nhận thông báo (Host + toàn bộ Attendees)
+        java.util.Set<Integer> targetIds = new java.util.HashSet<>();
+        targetIds.add(booking.getUserId());
+        if (booking.getInvitedUsers() != null && !booking.getInvitedUsers().trim().isEmpty()) {
+            for (String uStr : booking.getInvitedUsers().split(",")) {
+                try {
+                    targetIds.add(Integer.parseInt(uStr.trim()));
+                } catch (Exception ignored) {}
             }
         }
 
-        serverManager.log(String.format("[TCP PUSH REMINDER] %s -> Gửi tới User ID=%d (%s) - Online: %s",
-                titlePrefix, booking.getUserId(), booking.getUserFullName(), userOnline ? "CÓ" : "KHÔNG"));
+        for (int targetId : targetIds) {
+            // 1. Lưu bản ghi vào CSDL SQLite để xem lại trong lịch sử thông báo
+            try {
+                bookingService.getNotificationDao().insertNotification(
+                        targetId,
+                        titlePrefix,
+                        message,
+                        "REMINDER",
+                        booking.getId()
+                );
+            } catch (Exception ignored) {}
+
+            // 2. Gửi thời gian thực qua TCP nếu user đang online
+            boolean sent = serverManager.sendToUser(targetId, pushRes);
+            if (sent) {
+                serverManager.log(String.format("[TCP PUSH REMINDER] %s -> Gửi trực tiếp tới User ID=%d", titlePrefix, targetId));
+            }
+        }
     }
 }

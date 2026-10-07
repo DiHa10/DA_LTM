@@ -10,6 +10,8 @@ import com.meeting.common.protocol.JsonUtil;
 import com.meeting.common.protocol.Request;
 import com.meeting.common.protocol.Response;
 import com.meeting.client.ui.util.AppIcon;
+import com.meeting.client.ui.util.CalendarPickerPopup;
+import com.meeting.common.util.DateUtil;
 
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
@@ -95,7 +97,7 @@ public class MainDashboard extends JFrame {
     public MainDashboard(SocketClient client, User currentUser) {
         this.client = client;
         this.currentUser = currentUser;
-        this.selectedDate = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
+        this.selectedDate = DateUtil.todayUi();
 
         initUI();
         setupBroadcastListener();
@@ -145,7 +147,8 @@ public class MainDashboard extends JFrame {
         lblUserName.setForeground(Color.WHITE);
         lblUserName.setAlignmentX(Component.LEFT_ALIGNMENT);
 
-        lblDept = new JLabel(currentUser.getDepartment() + " • " + currentUser.getRole());
+        String roleText = currentUser.isAdmin() ? "ADMIN" : (currentUser.getDepartment() + " • " + currentUser.getRole());
+        lblDept = new JLabel(roleText);
         lblDept.setFont(new Font("Segoe UI", Font.PLAIN, 12));
         lblDept.setForeground(new Color(245, 243, 239, 180));
         lblDept.setAlignmentX(Component.LEFT_ALIGNMENT);
@@ -333,6 +336,11 @@ public class MainDashboard extends JFrame {
         }
     }
 
+    private void switchTab(String cardName) {
+        currentCardName = cardName;
+        cardLayout.show(contentArea, cardName);
+    }
+
     // ========== TAB 1: SCHEDULE ==========
     private JPanel createScheduleTab() {
         JPanel panel = new JPanel(new BorderLayout(0, 14));
@@ -361,22 +369,58 @@ public class MainDashboard extends JFrame {
         txtScheduleDate.setBackground(INPUT_BG);
         txtScheduleDate.setForeground(TEXT_PRIMARY);
         txtScheduleDate.setCaretColor(ACCENT_TERRA);
-        txtScheduleDate.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        txtScheduleDate.setFont(new Font("Segoe UI", Font.BOLD, 13));
+        txtScheduleDate.setToolTipText("Nhấp vào đây hoặc nút Lịch để chọn ngày trực quan (dd-MM-yyyy)");
         txtScheduleDate.setBorder(BorderFactory.createCompoundBorder(
                 BorderFactory.createLineBorder(BORDER_WARM, 1),
                 new EmptyBorder(5, 8, 5, 8)
         ));
         filterCard.add(txtScheduleDate);
 
+        // Nút mở Popup Lịch phong cách Windows Calendar
+        JButton btnCalendar = new JButton();
+        btnCalendar.setIcon(AppIcon.calendar(15, ACCENT_TERRA));
+        btnCalendar.setToolTipText("Mở lịch chọn ngày trực quan (Windows Calendar)");
+        btnCalendar.setBackground(INPUT_BG);
+        btnCalendar.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(BORDER_WARM, 1),
+                new EmptyBorder(5, 7, 5, 7)
+        ));
+        btnCalendar.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        btnCalendar.setFocusPainted(false);
+        filterCard.add(btnCalendar);
+
+        // Gắn CalendarPickerPopup vào txtScheduleDate và btnCalendar: khi click ngày tự động tải lại bảng lịch
+        CalendarPickerPopup.attach(txtScheduleDate, btnCalendar, chosenDate -> {
+            loadBookingsByDate();
+        });
+
         filterCard.add(createFilterButton("Hôm nay", () -> {
-            txtScheduleDate.setText(LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd")));
+            txtScheduleDate.setText(DateUtil.todayUi());
             loadBookingsByDate();
         }));
         filterCard.add(createFilterButton("Ngày mai", () -> {
-            txtScheduleDate.setText(LocalDate.now().plusDays(1).format(DateTimeFormatter.ofPattern("yyyy-MM-dd")));
+            txtScheduleDate.setText(DateUtil.formatUi(LocalDate.now().plusDays(1)));
             loadBookingsByDate();
         }));
         filterCard.add(createFilterButton("Xem Lịch", this::loadBookingsByDate));
+
+        JButton btnChatHost = createFilterButton("💬 Nhắn tin cho người đặt", () -> {
+            int row = tblBookings.getSelectedRow();
+            if (row < 0) {
+                JOptionPane.showMessageDialog(this, "Vui lòng chọn 1 lịch họp trong bảng phía dưới để nhắn tin cho người đặt phòng!", "Chọn lịch họp", JOptionPane.INFORMATION_MESSAGE);
+                return;
+            }
+            String roomName = (String) bookingTableModel.getValueAt(row, 1);
+            String timeSlot = (String) bookingTableModel.getValueAt(row, 2);
+            String hostName = (String) bookingTableModel.getValueAt(row, 3);
+
+            switchTab("chat");
+            txtChatInput.setText("[Gửi @" + hostName + " - Lịch " + roomName + " " + timeSlot + "]: ");
+            txtChatInput.requestFocus();
+        });
+        btnChatHost.setToolTipText("Chọn 1 lịch họp rồi bấm nút này để nhắn tin trực tiếp cho người đặt phòng");
+        filterCard.add(btnChatHost);
 
         // Nút đặt phòng Terracotta
         JButton btnBook = new JButton("+ Đặt Phòng Mới") {
@@ -548,13 +592,40 @@ public class MainDashboard extends JFrame {
         btnSendReminder.addActionListener(e -> doSendManualEmailReminder());
         toolBar.add(btnSendReminder);
 
+        JButton btnChatMeeting = new JButton("Chat trao đổi");
+        btnChatMeeting.setToolTipText("Mở kênh chat để trao đổi nhanh về cuộc họp đang chọn");
+        btnChatMeeting.setIcon(AppIcon.lightning(13, ACCENT_TERRA));
+        btnChatMeeting.setIconTextGap(6);
+        btnChatMeeting.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        btnChatMeeting.setBackground(CARD_BG);
+        btnChatMeeting.setForeground(TEXT_PRIMARY);
+        btnChatMeeting.setFocusPainted(false);
+        btnChatMeeting.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(BORDER_WARM, 1),
+                new EmptyBorder(6, 10, 6, 10)
+        ));
+        btnChatMeeting.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        btnChatMeeting.addActionListener(e -> {
+            int row = tblMyBookings.getSelectedRow();
+            if (row < 0) {
+                JOptionPane.showMessageDialog(this, "Vui lòng chọn 1 cuộc họp trong bảng để trao đổi!", "Thông báo", JOptionPane.INFORMATION_MESSAGE);
+                return;
+            }
+            String roomName = (String) myBookingTableModel.getValueAt(row, 1);
+            String timeSlot = (String) myBookingTableModel.getValueAt(row, 3);
+            switchTab("chat");
+            txtChatInput.setText("[Trao đổi về lịch " + roomName + " (" + timeSlot + ")]: ");
+            txtChatInput.requestFocus();
+        });
+        toolBar.add(btnChatMeeting);
+
         JPanel topArea = new JPanel(new BorderLayout(0, 10));
         topArea.setOpaque(false);
         topArea.add(lblPageTitle, BorderLayout.NORTH);
         topArea.add(toolBar, BorderLayout.CENTER);
         panel.add(topArea, BorderLayout.NORTH);
 
-        String[] myCols = {"Mã Lịch", "Phòng họp", "Ngày họp", "Khung giờ", "Mục đích", "Trạng thái", "Ngày tạo"};
+        String[] myCols = {"Mã Lịch", "Phòng họp", "Ngày họp", "Khung giờ", "Mục đích", "Vai trò", "Trạng thái", "Ngày tạo"};
         myBookingTableModel = new DefaultTableModel(myCols, 0) {
             @Override
             public boolean isCellEditable(int row, int col) { return false; }
@@ -989,14 +1060,52 @@ public class MainDashboard extends JFrame {
         bottom.add(btnClose);
         p.add(bottom, BorderLayout.SOUTH);
 
+        new Thread(() -> {
+            Request req = new Request(ActionType.MARK_NOTIFICATION_READ, currentUser.getId(), null);
+            client.sendRequest(req);
+        }).start();
+
         dialog.setContentPane(p);
         dialog.setVisible(true);
+    }
+
+    private void loadNotifications() {
+        new Thread(() -> {
+            Request req = new Request(ActionType.GET_NOTIFICATIONS, currentUser.getId(), null);
+            Response res = client.sendRequest(req);
+            if (res != null && res.isSuccess()) {
+                List<com.meeting.common.model.Notification> notifs = JsonUtil.fromJson(
+                        res.getData(),
+                        new TypeToken<List<com.meeting.common.model.Notification>>() {}.getType()
+                );
+                SwingUtilities.invokeLater(() -> {
+                    notificationHistory.clear();
+                    int unreadCount = 0;
+                    if (notifs != null) {
+                        for (com.meeting.common.model.Notification n : notifs) {
+                            String timeStr = (n.getCreatedAt() != null && n.getCreatedAt().length() >= 16)
+                                    ? n.getCreatedAt().substring(11, 16) : "";
+                            String prefix = timeStr.isEmpty() ? "" : ("[" + timeStr + "] ");
+                            notificationHistory.add(prefix + n.getMessage());
+                            if (!n.isRead()) {
+                                unreadCount++;
+                            }
+                        }
+                    }
+                    if (btnNotifications != null) {
+                        btnNotifications.setText("Thông báo (" + (unreadCount > 0 ? unreadCount : notificationHistory.size()) + ")");
+                        btnNotifications.setIcon(AppIcon.bell(14, unreadCount > 0 ? ACCENT_TERRA : TEXT_SECONDARY));
+                    }
+                });
+            }
+        }).start();
     }
 
     private void loadAllData() {
         loadRooms();
         loadBookingsByDate();
         loadMyBookings();
+        loadNotifications();
         if (currentUser.isAdmin()) {
             loadAdminUsers();
         }
@@ -1024,8 +1133,9 @@ public class MainDashboard extends JFrame {
     }
 
     private void loadBookingsByDate() {
-        String date = txtScheduleDate.getText().trim();
-        if (date.isEmpty()) return;
+        String uiDate = txtScheduleDate.getText().trim();
+        if (uiDate.isEmpty()) return;
+        String date = DateUtil.toDbDate(uiDate);
 
         new Thread(() -> {
             Request req = new Request(ActionType.GET_BOOKINGS_BY_DATE, date);
@@ -1061,12 +1171,14 @@ public class MainDashboard extends JFrame {
                 SwingUtilities.invokeLater(() -> {
                     myBookingTableModel.setRowCount(0);
                     for (Booking b : list) {
+                        String roleInMeeting = (b.getUserId() == currentUser.getId()) ? "Chủ trì (Host)" : "Tham gia (Khách mời)";
                         myBookingTableModel.addRow(new Object[]{
                                 b.getId(),
                                 b.getRoomName(),
-                                b.getBookingDate(),
+                                DateUtil.toUiDate(b.getBookingDate()),
                                 b.getTimeSlot(),
                                 b.getPurpose(),
+                                roleInMeeting,
                                 b.getStatus(),
                                 b.getCreatedAt()
                         });
@@ -1091,8 +1203,14 @@ public class MainDashboard extends JFrame {
             return;
         }
 
+        Booking selectedBooking = (cachedMyBookings != null && row < cachedMyBookings.size()) ? cachedMyBookings.get(row) : null;
+        if (!currentUser.isAdmin() && selectedBooking != null && selectedBooking.getUserId() != currentUser.getId()) {
+            JOptionPane.showMessageDialog(this, "Bạn chỉ là Khách mời của cuộc họp này. Chỉ Người chủ trì (Host) hoặc Quản trị viên mới có quyền hủy lịch!", "Không có quyền", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
         int bookingId = (int) myBookingTableModel.getValueAt(row, 0);
-        String status = (String) myBookingTableModel.getValueAt(row, 5);
+        String status = (String) myBookingTableModel.getValueAt(row, 6);
 
         if ("CANCELLED".equalsIgnoreCase(status)) {
             JOptionPane.showMessageDialog(this, "Lịch họp này đã bị hủy từ trước!", "Thông báo", JOptionPane.INFORMATION_MESSAGE);
@@ -1128,9 +1246,15 @@ public class MainDashboard extends JFrame {
             return;
         }
 
+        Booking selectedBooking = (cachedMyBookings != null && row < cachedMyBookings.size()) ? cachedMyBookings.get(row) : null;
+        if (!currentUser.isAdmin() && selectedBooking != null && selectedBooking.getUserId() != currentUser.getId()) {
+            JOptionPane.showMessageDialog(this, "Bạn chỉ là Khách mời. Chỉ Người chủ trì (Host) hoặc Quản trị viên mới có quyền trả phòng sớm!", "Không có quyền", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
         int bookingId = (int) myBookingTableModel.getValueAt(row, 0);
         String roomName = (String) myBookingTableModel.getValueAt(row, 1);
-        String status = (String) myBookingTableModel.getValueAt(row, 5);
+        String status = (String) myBookingTableModel.getValueAt(row, 6);
 
         if (!"CONFIRMED".equalsIgnoreCase(status)) {
             JOptionPane.showMessageDialog(this, "Chỉ có thể trả phòng sớm cho lịch họp đang CONFIRMED (Hiện tại: " + status + ")!", "Thông báo", JOptionPane.WARNING_MESSAGE);
@@ -1167,10 +1291,16 @@ public class MainDashboard extends JFrame {
             return;
         }
 
+        Booking selectedBooking = (cachedMyBookings != null && row < cachedMyBookings.size()) ? cachedMyBookings.get(row) : null;
+        if (!currentUser.isAdmin() && selectedBooking != null && selectedBooking.getUserId() != currentUser.getId()) {
+            JOptionPane.showMessageDialog(this, "Bạn chỉ là Khách mời. Chỉ Người chủ trì (Host) hoặc Quản trị viên mới có quyền gia hạn cuộc họp!", "Không có quyền", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
         int bookingId = (int) myBookingTableModel.getValueAt(row, 0);
         String roomName = (String) myBookingTableModel.getValueAt(row, 1);
         String timeSlot = (String) myBookingTableModel.getValueAt(row, 3);
-        String status = (String) myBookingTableModel.getValueAt(row, 5);
+        String status = (String) myBookingTableModel.getValueAt(row, 6);
 
         if (!"CONFIRMED".equalsIgnoreCase(status)) {
             JOptionPane.showMessageDialog(this, "Chỉ có thể gia hạn cho lịch họp đang CONFIRMED (Hiện tại: " + status + ")!", "Thông báo", JOptionPane.WARNING_MESSAGE);
@@ -1249,7 +1379,8 @@ public class MainDashboard extends JFrame {
 
     private void updateUserHeader() {
         if (lblUserName != null) lblUserName.setText(currentUser.getFullName());
-        if (lblDept != null) lblDept.setText(currentUser.getDepartment() + " • " + currentUser.getRole());
+        String roleText = currentUser.isAdmin() ? "ADMIN" : (currentUser.getDepartment() + " • " + currentUser.getRole());
+        if (lblDept != null) lblDept.setText(roleText);
         setTitle("Meeting Room Booking — [" + currentUser.getFullName() + " - " + currentUser.getRole() + "]");
     }
 

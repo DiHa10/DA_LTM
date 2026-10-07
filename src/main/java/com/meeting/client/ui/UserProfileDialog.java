@@ -54,8 +54,9 @@ public class UserProfileDialog extends JDialog {
     }
 
     private void initUI() {
-        setSize(480, 520);
-        setResizable(false);
+        setSize(480, 620);
+        setResizable(true);
+        setMinimumSize(new Dimension(440, 520));
         setLocationRelativeTo(getParent());
 
         JPanel root = new JPanel(new BorderLayout(0, 12));
@@ -87,8 +88,15 @@ public class UserProfileDialog extends JDialog {
         tabbedPane.setFont(new Font("Segoe UI", Font.BOLD, 13));
         tabbedPane.setBackground(CARD_BG);
 
-        tabbedPane.addTab("Thông Tin Chung", AppIcon.avatar(14, TEXT_SECONDARY), createInfoTab());
-        tabbedPane.addTab("Đổi Mật Khẩu", AppIcon.lightning(14, ACCENT_TERRA), createPasswordTab());
+        JScrollPane scrollInfo = new JScrollPane(createInfoTab());
+        scrollInfo.setBorder(null);
+        scrollInfo.getVerticalScrollBar().setUnitIncrement(14);
+        tabbedPane.addTab("Thông Tin Chung", AppIcon.avatar(14, TEXT_SECONDARY), scrollInfo);
+
+        JScrollPane scrollPw = new JScrollPane(createPasswordTab());
+        scrollPw.setBorder(null);
+        scrollPw.getVerticalScrollBar().setUnitIncrement(14);
+        tabbedPane.addTab("Đổi Mật Khẩu", AppIcon.lightning(14, ACCENT_TERRA), scrollPw);
 
         root.add(tabbedPane, BorderLayout.CENTER);
         setContentPane(root);
@@ -125,7 +133,19 @@ public class UserProfileDialog extends JDialog {
         // Email
         txtEmail = new JTextField(currentUser.getEmail() != null ? currentUser.getEmail() : "");
         styleField(txtEmail);
-        card.add(createFieldWrapper("Email công ty (Nhận thông báo lịch họp):", txtEmail));
+        if (!currentUser.isAdmin()) {
+            txtEmail.setEditable(false);
+            txtEmail.setBackground(new Color(241, 245, 249));
+            txtEmail.setForeground(TEXT_SECONDARY);
+        }
+        card.add(createFieldWrapper(currentUser.isAdmin() ? "Email công ty (Nhận thông báo lịch họp):" : "Email công ty (Cố định):", txtEmail));
+        if (!currentUser.isAdmin()) {
+            JLabel lblEmailNote = new JLabel("(*) Email do Quản trị viên chỉ định, nhân viên không tự ý thay đổi.");
+            lblEmailNote.setFont(new Font("Segoe UI", Font.ITALIC, 11));
+            lblEmailNote.setForeground(TEXT_SECONDARY);
+            card.add(Box.createVerticalStrut(2));
+            card.add(lblEmailNote);
+        }
         card.add(Box.createVerticalStrut(10));
 
         // Phòng ban
@@ -135,7 +155,18 @@ public class UserProfileDialog extends JDialog {
         cboDepartment.setBackground(INPUT_BG);
         cboDepartment.setSelectedItem(currentUser.getDepartment());
         cboDepartment.setMaximumSize(new Dimension(Integer.MAX_VALUE, 38));
-        card.add(createFieldWrapper("Phòng ban làm việc:", cboDepartment));
+        if (!currentUser.isAdmin()) {
+            cboDepartment.setEnabled(false);
+            cboDepartment.setBackground(new Color(241, 245, 249));
+        }
+        card.add(createFieldWrapper(currentUser.isAdmin() ? "Phòng ban làm việc:" : "Phòng ban làm việc (Cố định):", cboDepartment));
+        if (!currentUser.isAdmin()) {
+            JLabel lblDeptNote = new JLabel("(*) Phòng ban do Quản trị viên phân bổ, liên hệ Admin nếu chuyển ban.");
+            lblDeptNote.setFont(new Font("Segoe UI", Font.ITALIC, 11));
+            lblDeptNote.setForeground(TEXT_SECONDARY);
+            card.add(Box.createVerticalStrut(2));
+            card.add(lblDeptNote);
+        }
         card.add(Box.createVerticalStrut(20));
 
         // Nút Lưu
@@ -223,15 +254,15 @@ public class UserProfileDialog extends JDialog {
 
     private void doSaveProfile() {
         String fullName = txtFullName.getText().trim();
-        String email = txtEmail.getText().trim();
-        String department = (String) cboDepartment.getSelectedItem();
+        String email = currentUser.isAdmin() ? txtEmail.getText().trim() : (currentUser.getEmail() != null ? currentUser.getEmail() : "");
+        String department = currentUser.isAdmin() ? (String) cboDepartment.getSelectedItem() : currentUser.getDepartment();
 
         if (fullName.isEmpty()) {
             JOptionPane.showMessageDialog(this, "Họ và tên không được để trống!", "Lỗi nhập liệu", JOptionPane.WARNING_MESSAGE);
             return;
         }
 
-        if (!email.isEmpty() && !email.matches("^[A-Za-z0-9+_.-]+@(.+)$")) {
+        if (currentUser.isAdmin() && !email.isEmpty() && !email.matches("^[A-Za-z0-9+_.-]+@(.+)$")) {
             JOptionPane.showMessageDialog(this, "Định dạng email không hợp lệ (VD: user@company.com)!", "Lỗi định dạng", JOptionPane.WARNING_MESSAGE);
             return;
         }
