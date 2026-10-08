@@ -29,7 +29,6 @@ public class CreateUserDialog extends JDialog {
     private JTextField txtEmail;
     private JComboBox<String> cboRole;
     private JComboBox<String> cboDepartment;
-    private JCheckBox chkSendEmail;
 
     // Bảng màu Warm Minimalist
     private static final Color BG_WARM = new Color(245, 243, 239);
@@ -50,7 +49,7 @@ public class CreateUserDialog extends JDialog {
     }
 
     private void initUI() {
-        setSize(460, 560);
+        setSize(460, 510);
         setResizable(false);
         setLocationRelativeTo(getParent());
 
@@ -69,7 +68,7 @@ public class CreateUserDialog extends JDialog {
         lblTitle.setFont(new Font("Segoe UI", Font.BOLD, 18));
         lblTitle.setForeground(TEXT_PRIMARY);
 
-        JLabel lblSub = new JLabel("Khởi tạo tài khoản, phân vai trò & gửi thông tin đăng nhập");
+        JLabel lblSub = new JLabel("Khởi tạo tài khoản & phân quyền vai trò cho nhân viên");
         lblSub.setFont(new Font("Segoe UI", Font.PLAIN, 12));
         lblSub.setForeground(TEXT_SECONDARY);
 
@@ -108,7 +107,7 @@ public class CreateUserDialog extends JDialog {
         // 4. Email
         txtEmail = new JTextField();
         styleField(txtEmail);
-        card.add(createFieldWrapper("Email công ty (Nhận mật khẩu & lịch họp):", txtEmail));
+        card.add(createFieldWrapper("Email công ty (Tùy chọn):", txtEmail));
         card.add(Box.createVerticalStrut(8));
 
         // 5. Vai trò (Role)
@@ -129,15 +128,7 @@ public class CreateUserDialog extends JDialog {
         card.add(createFieldWrapper("Phòng ban trực thuộc:", cboDepartment));
         card.add(Box.createVerticalStrut(12));
 
-        // 7. Checkbox gửi Email
-        chkSendEmail = new JCheckBox("Tự động gửi thông tin đăng nhập qua Email");
-        chkSendEmail.setFont(new Font("Segoe UI", Font.BOLD, 12));
-        chkSendEmail.setForeground(ACCENT_FOREST);
-        chkSendEmail.setOpaque(false);
-        chkSendEmail.setSelected(true);
-        chkSendEmail.setAlignmentX(Component.LEFT_ALIGNMENT);
-        card.add(chkSendEmail);
-        card.add(Box.createVerticalStrut(14));
+        card.add(Box.createVerticalStrut(6));
 
         root.add(card, BorderLayout.CENTER);
 
@@ -202,15 +193,9 @@ public class CreateUserDialog extends JDialog {
         String email = txtEmail.getText().trim();
         String role = (String) cboRole.getSelectedItem();
         String department = (String) cboDepartment.getSelectedItem();
-        boolean sendEmail = chkSendEmail.isSelected();
 
         if (username.isEmpty() || password.isEmpty() || fullName.isEmpty()) {
             JOptionPane.showMessageDialog(this, "Vui lòng điền đầy đủ Tên đăng nhập, Mật khẩu và Họ tên!", "Lỗi nhập liệu", JOptionPane.WARNING_MESSAGE);
-            return;
-        }
-
-        if (sendEmail && email.isEmpty()) {
-            JOptionPane.showMessageDialog(this, "Bạn đã chọn gửi email nhưng chưa nhập địa chỉ Email cho nhân viên!", "Lỗi nhập liệu", JOptionPane.WARNING_MESSAGE);
             return;
         }
 
@@ -226,7 +211,6 @@ public class CreateUserDialog extends JDialog {
         data.put("email", email);
         data.put("role", role);
         data.put("department", department);
-        data.put("sendEmail", sendEmail);
 
         new Thread(() -> {
             try {
@@ -235,11 +219,7 @@ public class CreateUserDialog extends JDialog {
 
                 SwingUtilities.invokeLater(() -> {
                     if (res != null && res.isSuccess()) {
-                        String msg = "Tạo tài khoản thành công!";
-                        if (sendEmail) {
-                            msg += "\nĐã gửi thông tin đăng nhập và mật khẩu tới email: " + email;
-                        }
-                        JOptionPane.showMessageDialog(this, msg, "Hoàn tất", JOptionPane.INFORMATION_MESSAGE);
+                        JOptionPane.showMessageDialog(this, "Tạo tài khoản thành công!", "Hoàn tất", JOptionPane.INFORMATION_MESSAGE);
                         if (onSuccessCallback != null) {
                             onSuccessCallback.run();
                         }

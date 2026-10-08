@@ -165,9 +165,7 @@ public class ClientHandler implements Runnable {
                     newUser.setRole((String) map.get("role"));
                     newUser.setDepartment((String) map.get("department"));
                     newUser.setEmail((String) map.get("email"));
-                    boolean sendEmail = Boolean.TRUE.equals(map.get("sendEmail"));
-
-                    Response res = bookingService.createUser(newUser, sendEmail);
+                    Response res = bookingService.createUser(newUser);
                     if (res.isSuccess()) {
                         serverManager.log("[TẠO TÀI KHOẢN] Quản trị viên tạo user: " + newUser.getUsername() + " (" + newUser.getRole() + ")");
                         serverManager.broadcast(new Response(Response.SUCCESS, "Danh sách nhân viên vừa được cập nhật!", ActionType.BROADCAST_UPDATE, "USERS_UPDATED"));
@@ -216,17 +214,6 @@ public class ClientHandler implements Runnable {
                     String oldPass = map.get("oldPassword");
                     String newPass = map.get("newPassword");
                     return bookingService.changePassword(currentUser.getId(), oldPass, newPass);
-                }
-
-                case SEND_MANUAL_EMAIL_REMINDER -> {
-                    if (currentUser == null) {
-                        return Response.error("Bạn chưa đăng nhập!");
-                    }
-                    Map<String, String> map = JsonUtil.fromJson(request.getData(), new TypeToken<Map<String, String>>() {}.getType());
-                    int bookingId = Integer.parseInt(map.get("bookingId"));
-                    String customNote = map.get("customNote");
-                    boolean isAdmin = currentUser.isAdmin();
-                    return bookingService.sendManualReminderEmail(bookingId, currentUser.getId(), isAdmin, customNote);
                 }
 
                 case BOOK_ROOM -> {

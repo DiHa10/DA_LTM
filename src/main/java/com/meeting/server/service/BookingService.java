@@ -18,7 +18,6 @@ public class BookingService {
     private final RoomDao roomDao = new RoomDao();
     private final BookingDao bookingDao = new BookingDao();
     private final NotificationDao notificationDao = new NotificationDao();
-    private final EmailService emailService = new EmailService();
 
     // Khóa đồng bộ dùng cho việc tranh chấp tài nguyên đặt phòng
     private final Object bookingLock = new Object();
@@ -31,9 +30,6 @@ public class BookingService {
         return roomDao.findAvailableRooms(date, startTime, endTime);
     }
 
-    public EmailService getEmailService() {
-        return emailService;
-    }
 
     public User getUserById(int id) {
         return userDao.getUserById(id);
@@ -121,9 +117,6 @@ public class BookingService {
                     booking.setDepartment(host.getDepartment());
                 }
 
-                // Tự động kích hoạt gửi Email thông báo mở phòng họp cho Host và Attendees
-                List<User> attendees = parseAttendees(booking.getInvitedUsers());
-                emailService.sendMeetingCreatedEmailAsync(booking, host, attendees);
 
                 System.out.printf("[SYNCHRONIZED - ĐẶT THÀNH CÔNG] Đã ghi nhận lịch đặt phòng [%s] cho User ID=%d%n",
                         room.getName(), booking.getUserId());
@@ -219,7 +212,7 @@ public class BookingService {
     // QUẢN LÝ USER, PHÂN QUYỀN & HỒ SƠ CÁ NHÂN
     // ==========================================
 
-    public Response createUser(User newUser, boolean sendEmail) {
+    public Response createUser(User newUser) {
         if (newUser == null) return Response.error("Dữ liệu nhân viên không hợp lệ!");
         if (newUser.getUsername() == null || newUser.getUsername().trim().isEmpty()) {
             return Response.error("Tên đăng nhập không được để trống!");
@@ -250,12 +243,8 @@ public class BookingService {
             newUser.setDepartment("Chung");
         }
 
-        String rawPassword = newUser.getPassword();
         boolean ok = userDao.createUser(newUser);
         if (ok) {
-            if (sendEmail) {
-                emailService.sendNewAccountEmailAsync(newUser, rawPassword);
-            }
             return Response.success("Tạo tài khoản '" + newUser.getUsername() + "' thành công!", ActionType.CREATE_USER, JsonUtil.toJson(newUser));
         }
         return Response.error("Không thể tạo tài khoản do lỗi cơ sở dữ liệu!");
@@ -337,48 +326,6 @@ public class BookingService {
     }
 
     // ==========================================
-    // GỬI EMAIL NHẮC NHỞ THỦ CÔNG TỪ CHỦ PHÒNG
-    // ==========================================
-
-    public Response sendManualReminderEmail(int bookingId, int requesterId, boolean isAdmin, String customNote) {
-        Booking booking = bookingDao.getBookingById(bookingId);
-        if (booking == null) {
-            return Response.error("Lịch họp không tồn tại!");
-        }
-        if (!isAdmin && booking.getUserId() != requesterId) {
-            return Response.error("Chỉ chủ trì cuộc họp hoặc Admin mới có quyền gửi thư nhắc nhở!");
-        }
-
-        User host = userDao.getUserById(booking.getUserId());
-        List<User> attendees = parseAttendees(booking.getInvitedUsers());
-
-        if (attendees.isEmpty()) {
-            return Response.error("Cuộc họp này không có danh sách đồng nghiệp được mời để gửi thư nhắc nhở!");
-        }
-
-        int count = emailService.sendManualReminderEmailSync(booking, host, attendees, customNote);
-        if (count > 0) {
-            return Response.success("Đã kích hoạt gửi email nhắc nhở tới " + count + " thành viên tham gia!");
-        } else {
-            return Response.error("Không tìm thấy địa chỉ email hợp lệ nào trong danh sách người được mời!");
-        }
-    }
-
-    private List<User> parseAttendees(String invitedUsersStr) {
-        List<User> list = new java.util.ArrayList<>();
-        if (invitedUsersStr == null || invitedUsersStr.trim().isEmpty()) return list;
-
-        List<Integer> ids = new java.util.ArrayList<>();
-        for (String part : invitedUsersStr.split(",")) {
-            try {
-                ids.add(Integer.parseInt(part.trim()));
-            } catch (Exception ignored) {}
-        }
-        if (!ids.isEmpty()) {
-            list.addAll(userDao.getUsersByIds(ids));
-        }
-        return list;
-    }
 
     public List<User> getAllUsers() {
         return userDao.getAllUsers();

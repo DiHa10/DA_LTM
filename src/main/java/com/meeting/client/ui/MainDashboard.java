@@ -576,21 +576,6 @@ public class MainDashboard extends JFrame {
         btnExtend.addActionListener(e -> doExtendSelectedBooking());
         toolBar.add(btnExtend);
 
-        JButton btnSendReminder = new JButton("Gửi mail nhắc nhở");
-        btnSendReminder.setToolTipText("Gửi email nhắc nhở/thông báo trực tiếp cho các thành viên tham gia");
-        btnSendReminder.setIcon(AppIcon.mail(14, new Color(107, 33, 168)));
-        btnSendReminder.setIconTextGap(6);
-        btnSendReminder.setFont(new Font("Segoe UI", Font.BOLD, 12));
-        btnSendReminder.setBackground(new Color(243, 232, 255));
-        btnSendReminder.setForeground(new Color(107, 33, 168));
-        btnSendReminder.setFocusPainted(false);
-        btnSendReminder.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(new Color(216, 180, 254), 1),
-                new EmptyBorder(6, 10, 6, 10)
-        ));
-        btnSendReminder.setCursor(new Cursor(Cursor.HAND_CURSOR));
-        btnSendReminder.addActionListener(e -> doSendManualEmailReminder());
-        toolBar.add(btnSendReminder);
 
         JButton btnChatMeeting = new JButton("Chat trao đổi");
         btnChatMeeting.setToolTipText("Mở kênh chat để trao đổi nhanh về cuộc họp đang chọn");
@@ -1333,40 +1318,6 @@ public class MainDashboard extends JFrame {
                 });
             }).start();
         }
-    }
-
-    private void doSendManualEmailReminder() {
-        int row = tblMyBookings.getSelectedRow();
-        if (row < 0) {
-            JOptionPane.showMessageDialog(this, "Vui lòng chọn 1 lịch họp trong bảng để gửi email nhắc nhở!", "Thông báo", JOptionPane.WARNING_MESSAGE);
-            return;
-        }
-
-        int bookingId = (int) myBookingTableModel.getValueAt(row, 0);
-        String status = (String) myBookingTableModel.getValueAt(row, 5);
-
-        if ("CANCELLED".equalsIgnoreCase(status)) {
-            JOptionPane.showMessageDialog(this, "Lịch họp này đã bị hủy, không thể gửi email nhắc nhở!", "Thông báo", JOptionPane.WARNING_MESSAGE);
-            return;
-        }
-
-        Booking selected = null;
-        if (cachedMyBookings != null) {
-            for (Booking b : cachedMyBookings) {
-                if (b.getId() == bookingId) {
-                    selected = b;
-                    break;
-                }
-            }
-        }
-
-        if (selected == null) {
-            JOptionPane.showMessageDialog(this, "Không tìm thấy dữ liệu chi tiết của lịch họp!", "Lỗi", JOptionPane.ERROR_MESSAGE);
-            return;
-        }
-
-        ManualReminderDialog dialog = new ManualReminderDialog(this, client, currentUser, selected);
-        dialog.setVisible(true);
     }
 
     private void openUserProfileDialog() {

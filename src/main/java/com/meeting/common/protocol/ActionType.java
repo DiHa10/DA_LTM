@@ -27,8 +27,7 @@ public enum ActionType {
     RELEASE_ROOM_EARLY, // Trả phòng sớm / Giải phóng phòng
     EXTEND_BOOKING,     // Gia hạn thêm giờ họp với kiểm tra tranh chấp phòng
 
-    // Thông báo & Email nhắc nhở
-    SEND_MANUAL_EMAIL_REMINDER, // Chủ phòng kích hoạt gửi email nhắc nhở thủ công
+    // Thông báo & Lịch sử
     GET_NOTIFICATIONS,          // Tải danh sách thông báo đã lưu trong CSDL
     MARK_NOTIFICATION_READ,     // Đánh dấu đã đọc thông báo
 
