@@ -5,12 +5,18 @@ import com.meeting.common.protocol.Response;
 import com.meeting.server.db.DatabaseManager;
 import com.meeting.server.service.BookingService;
 
+import com.meeting.common.protocol.ActionType;
+import com.meeting.common.protocol.JsonUtil;
+
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -111,9 +117,26 @@ public class ServerManager {
         return sent;
     }
 
+    public List<Integer> getOnlineUserIds() {
+        List<Integer> list = new ArrayList<>();
+        for (ClientHandler client : activeClients) {
+            if (client.getCurrentUser() != null) {
+                list.add(client.getCurrentUser().getId());
+            }
+        }
+        return list;
+    }
+
     public void removeClient(ClientHandler handler) {
+        User u = handler.getCurrentUser();
         activeClients.remove(handler);
         updateClientList();
+        if (u != null) {
+            Map<String, Object> map = new HashMap<>();
+            map.put("userId", u.getId());
+            map.put("online", false);
+            broadcast(new Response(Response.SUCCESS, "Người dùng đã Offline", ActionType.USER_STATUS_UPDATE, JsonUtil.toJson(map)));
+        }
     }
 
     /**
@@ -128,6 +151,12 @@ public class ServerManager {
         }
         handler.setCurrentUser(user);
         updateClientList();
+
+        // Broadcast trạng thái Online tức thời cho các Client khác
+        Map<String, Object> map = new HashMap<>();
+        map.put("userId", user.getId());
+        map.put("online", true);
+        broadcast(new Response(Response.SUCCESS, "Người dùng đã Online", ActionType.USER_STATUS_UPDATE, JsonUtil.toJson(map)));
         return true;
     }
 
@@ -135,8 +164,15 @@ public class ServerManager {
      * Hủy đăng ký tài khoản khi người dùng bấm Đăng xuất.
      */
     public synchronized void unregisterUser(ClientHandler handler) {
+        User u = handler.getCurrentUser();
         handler.setCurrentUser(null);
         updateClientList();
+        if (u != null) {
+            Map<String, Object> map = new HashMap<>();
+            map.put("userId", u.getId());
+            map.put("online", false);
+            broadcast(new Response(Response.SUCCESS, "Người dùng đã Offline", ActionType.USER_STATUS_UPDATE, JsonUtil.toJson(map)));
+        }
     }
 
     public void updateClientList() {

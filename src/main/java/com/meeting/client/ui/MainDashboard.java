@@ -13,6 +13,10 @@ import com.meeting.client.ui.util.AppIcon;
 import com.meeting.client.ui.util.CalendarPickerPopup;
 import com.meeting.common.util.DateUtil;
 
+import com.meeting.client.ui.util.NotificationToast;
+import com.meeting.client.ui.util.SoundUtil;
+import com.meeting.common.model.ChatMessage;
+
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 import javax.swing.border.MatteBorder;
@@ -27,8 +31,10 @@ import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 public class MainDashboard extends JFrame {
     private final SocketClient client;
@@ -77,16 +83,35 @@ public class MainDashboard extends JFrame {
     private JLabel lblUserName;
     private JLabel lblDept;
 
-    // UI Tab 4: Internal Chat
+    // UI Tab 4: Kênh trao đổi nội bộ & Chat riêng bảo mật (1-1)
     private JPanel pnlChatMessages;
     private JScrollPane scrollChat;
     private JTextField txtChatInput;
     private JButton btnSendChat;
+    private boolean isPublicChatSelected = true;
+    private User selectedChatUser = null;
+    private final List<User> allColleagues = new ArrayList<>();
+    private final Set<Integer> onlineUserIds = new HashSet<>();
+    private final Map<Integer, Integer> privateUnreadCounts = new HashMap<>();
+    private int publicUnreadCount = 0;
+    private JPanel pnlConversationList;
+    private JTextField txtSearchChatUser;
+    private JLabel lblChatHeaderTitle;
+    private JLabel lblChatHeaderSubtitle;
+    private JLabel lblChatHeaderStatus;
+    private JLabel lblChatHeaderLock;
+    private JPanel pnlChatHeaderAvatar;
+    private JLabel lblNavChatText;
+    private final Map<String, JPanel> navButtonMap = new HashMap<>();
     private String currentCardName = "schedule";
 
     // Notification Center
     private final List<String> notificationHistory = new ArrayList<>();
     private JButton btnNotifications;
+
+    // Global Top Bar
+    private JLabel lblTopPageTitle;
+    private JLabel lblTopPageSubtitle;
 
     // Sidebar buttons
     private JPanel activeNavButton = null;
@@ -246,8 +271,11 @@ public class MainDashboard extends JFrame {
             contentArea.add(createAdminUsersTab(), "admin_users");
         }
 
-        setActiveNav(navSchedule);
-        cardLayout.show(contentArea, "schedule");
+        // Main Center Panel = Global Top Bar + Content Area
+        JPanel mainCenterPanel = new JPanel(new BorderLayout());
+        mainCenterPanel.setBackground(BG_WARM);
+        mainCenterPanel.add(createGlobalTopBar(), BorderLayout.NORTH);
+        mainCenterPanel.add(contentArea, BorderLayout.CENTER);
 
         // Bottom Status Bar
         JPanel bottomBar = new JPanel(new BorderLayout());
@@ -269,9 +297,139 @@ public class MainDashboard extends JFrame {
         bottomBar.add(lblTech, BorderLayout.EAST);
 
         root.add(sidebar, BorderLayout.WEST);
-        root.add(contentArea, BorderLayout.CENTER);
+        root.add(mainCenterPanel, BorderLayout.CENTER);
         root.add(bottomBar, BorderLayout.SOUTH);
         setContentPane(root);
+
+        // Kích hoạt tab mặc định
+        switchTab("schedule");
+    }
+
+    private JPanel createGlobalTopBar() {
+        JPanel bar = new JPanel(new BorderLayout());
+        bar.setBackground(CARD_BG);
+        bar.setPreferredSize(new Dimension(0, 56));
+        bar.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createMatteBorder(0, 0, 1, 0, BORDER_WARM),
+                new EmptyBorder(8, 22, 8, 22)
+        ));
+
+        // Nhóm bên trái: Tiêu đề trang & phụ đề
+        JPanel leftGroup = new JPanel();
+        leftGroup.setOpaque(false);
+        leftGroup.setLayout(new BoxLayout(leftGroup, BoxLayout.Y_AXIS));
+
+        lblTopPageTitle = new JLabel("LỊCH ĐẶT PHÒNG HỌP");
+        lblTopPageTitle.setFont(new Font("Segoe UI", Font.BOLD, 16));
+        lblTopPageTitle.setForeground(TEXT_PRIMARY);
+
+        lblTopPageSubtitle = new JLabel("Theo dõi lịch sử dụng phòng họp toàn công ty");
+        lblTopPageSubtitle.setFont(new Font("Segoe UI", Font.PLAIN, 11));
+        lblTopPageSubtitle.setForeground(TEXT_SECONDARY);
+
+        leftGroup.add(lblTopPageTitle);
+        leftGroup.add(Box.createVerticalStrut(2));
+        leftGroup.add(lblTopPageSubtitle);
+
+        // Nhóm bên phải: Ngày hôm nay & Nút Thông báo
+        JPanel rightGroup = new JPanel(new FlowLayout(FlowLayout.RIGHT, 12, 0));
+        rightGroup.setOpaque(false);
+
+        JLabel lblToday = new JLabel("Hôm nay: " + DateUtil.todayUi());
+        lblToday.setIcon(AppIcon.calendar(13, TEXT_SECONDARY));
+        lblToday.setIconTextGap(6);
+        lblToday.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        lblToday.setForeground(TEXT_SECONDARY);
+
+        JSeparator sep = new JSeparator(SwingConstants.VERTICAL);
+        sep.setPreferredSize(new Dimension(1, 24));
+        sep.setForeground(BORDER_WARM);
+
+        btnNotifications = new JButton("Thông báo (0)") {
+            @Override
+            protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                boolean hasUnread = !getText().contains("(0)");
+                if (getModel().isRollover()) {
+                    g2.setColor(hasUnread ? new Color(254, 226, 226) : new Color(245, 243, 239));
+                } else {
+                    g2.setColor(hasUnread ? new Color(254, 242, 242) : Color.WHITE);
+                }
+                g2.fillRoundRect(0, 0, getWidth(), getHeight(), 16, 16);
+                g2.setColor(hasUnread ? ACCENT_TERRA : BORDER_WARM);
+                g2.setStroke(new BasicStroke(hasUnread ? 1.5f : 1.0f));
+                g2.drawRoundRect(0, 0, getWidth() - 1, getHeight() - 1, 16, 16);
+                g2.dispose();
+                super.paintComponent(g);
+            }
+        };
+        btnNotifications.setIcon(AppIcon.bell(14, ACCENT_TERRA));
+        btnNotifications.setIconTextGap(7);
+        btnNotifications.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        btnNotifications.setForeground(ACCENT_TERRA);
+        btnNotifications.setOpaque(false);
+        btnNotifications.setContentAreaFilled(false);
+        btnNotifications.setBorderPainted(false);
+        btnNotifications.setFocusPainted(false);
+        btnNotifications.setBorder(new EmptyBorder(6, 14, 6, 14));
+        btnNotifications.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        btnNotifications.setToolTipText("Mở trung tâm thông báo và lịch sử nhắc nhở");
+        btnNotifications.addActionListener(e -> openNotificationDialog());
+
+        rightGroup.add(lblToday);
+        rightGroup.add(sep);
+        rightGroup.add(btnNotifications);
+
+        bar.add(leftGroup, BorderLayout.WEST);
+        bar.add(rightGroup, BorderLayout.EAST);
+        return bar;
+    }
+
+    private void updateTopBarForTab(String cardName) {
+        if (lblTopPageTitle == null || lblTopPageSubtitle == null) return;
+        switch (cardName) {
+            case "schedule" -> {
+                lblTopPageTitle.setText("LỊCH ĐẶT PHÒNG HỌP");
+                lblTopPageSubtitle.setText("Theo dõi khung giờ và đăng ký sử dụng phòng họp toàn công ty");
+            }
+            case "mybookings" -> {
+                lblTopPageTitle.setText("LỊCH HỌP CỦA TÔI");
+                lblTopPageSubtitle.setText("Quản lý danh sách các cuộc họp bạn tổ chức hoặc được mời tham gia");
+            }
+            case "chat" -> {
+                lblTopPageTitle.setText("KÊNH TRAO ĐỔI & THẢO LUẬN");
+                lblTopPageSubtitle.setText("Thảo luận công việc nội bộ thời gian thực và chat riêng tư bảo mật");
+            }
+            case "admin" -> {
+                lblTopPageTitle.setText("QUẢN LÝ PHÒNG HỌP");
+                lblTopPageSubtitle.setText("Thêm mới, sửa đổi trạng thái và cấu hình trang thiết bị phòng họp");
+            }
+            case "admin_users" -> {
+                lblTopPageTitle.setText("QUẢN LÝ NHÂN VIÊN");
+                lblTopPageSubtitle.setText("Quản lý tài khoản người dùng, phân quyền Admin và phòng ban");
+            }
+        }
+    }
+
+    public void switchTab(String cardName) {
+        JPanel navBtn = navButtonMap.get(cardName);
+        if (navBtn != null) {
+            currentCardName = cardName;
+            setActiveNav(navBtn);
+            cardLayout.show(contentArea, cardName);
+            updateTopBarForTab(cardName);
+            if ("chat".equals(cardName)) {
+                if (isPublicChatSelected) {
+                    publicUnreadCount = 0;
+                } else if (selectedChatUser != null) {
+                    privateUnreadCounts.remove(selectedChatUser.getId());
+                    new Thread(() -> client.sendRequest(new Request(ActionType.MARK_CHAT_READ, currentUser.getId(), String.valueOf(selectedChatUser.getId())))).start();
+                }
+                updateSidebarChatBadge();
+                renderConversationList();
+            }
+        }
     }
 
     private JPanel createNavButton(Icon icon, String text, String cardName) {
@@ -292,13 +450,15 @@ public class MainDashboard extends JFrame {
 
         navBtn.putClientProperty("cardName", cardName);
         navBtn.putClientProperty("label", lbl);
+        navButtonMap.put(cardName, navBtn);
+        if ("chat".equals(cardName)) {
+            lblNavChatText = lbl;
+        }
 
         navBtn.addMouseListener(new MouseAdapter() {
             @Override
             public void mouseClicked(MouseEvent e) {
-                currentCardName = cardName;
-                setActiveNav(navBtn);
-                cardLayout.show(contentArea, cardName);
+                switchTab(cardName);
             }
             @Override
             public void mouseEntered(MouseEvent e) {
@@ -336,10 +496,7 @@ public class MainDashboard extends JFrame {
         }
     }
 
-    private void switchTab(String cardName) {
-        currentCardName = cardName;
-        cardLayout.show(contentArea, cardName);
-    }
+
 
     // ========== TAB 1: SCHEDULE ==========
     private JPanel createScheduleTab() {
@@ -405,7 +562,7 @@ public class MainDashboard extends JFrame {
         }));
         filterCard.add(createFilterButton("Xem Lịch", this::loadBookingsByDate));
 
-        JButton btnChatHost = createFilterButton("💬 Nhắn tin cho người đặt", () -> {
+        JButton btnChatHost = createFilterButton("Nhắn tin cho người đặt", () -> {
             int row = tblBookings.getSelectedRow();
             if (row < 0) {
                 JOptionPane.showMessageDialog(this, "Vui lòng chọn 1 lịch họp trong bảng phía dưới để nhắn tin cho người đặt phòng!", "Chọn lịch họp", JOptionPane.INFORMATION_MESSAGE);
@@ -415,10 +572,10 @@ public class MainDashboard extends JFrame {
             String timeSlot = (String) bookingTableModel.getValueAt(row, 2);
             String hostName = (String) bookingTableModel.getValueAt(row, 3);
 
-            switchTab("chat");
-            txtChatInput.setText("[Gửi @" + hostName + " - Lịch " + roomName + " " + timeSlot + "]: ");
-            txtChatInput.requestFocus();
+            openChatWithColleague(hostName, "[Gửi @" + hostName + " - Lịch " + roomName + " " + timeSlot + "]: ");
         });
+        btnChatHost.setIcon(AppIcon.chat(13, ACCENT_TERRA));
+        btnChatHost.setIconTextGap(6);
         btnChatHost.setToolTipText("Chọn 1 lịch họp rồi bấm nút này để nhắn tin trực tiếp cho người đặt phòng");
         filterCard.add(btnChatHost);
 
@@ -447,22 +604,6 @@ public class MainDashboard extends JFrame {
         btnBook.addActionListener(e -> openBookingDialog());
         filterCard.add(Box.createHorizontalStrut(10));
         filterCard.add(btnBook);
-
-        btnNotifications = new JButton("Thông báo (0)");
-        btnNotifications.setIcon(AppIcon.bell(14, ACCENT_TERRA));
-        btnNotifications.setIconTextGap(6);
-        btnNotifications.setFont(new Font("Segoe UI", Font.BOLD, 12));
-        btnNotifications.setBackground(INPUT_BG);
-        btnNotifications.setForeground(ACCENT_TERRA);
-        btnNotifications.setFocusPainted(false);
-        btnNotifications.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(BORDER_WARM, 1),
-                new EmptyBorder(6, 12, 6, 12)
-        ));
-        btnNotifications.setCursor(new Cursor(Cursor.HAND_CURSOR));
-        btnNotifications.addActionListener(e -> openNotificationDialog());
-        filterCard.add(Box.createHorizontalStrut(8));
-        filterCard.add(btnNotifications);
 
         JPanel topArea = new JPanel(new BorderLayout(0, 10));
         topArea.setOpaque(false);
@@ -598,9 +739,7 @@ public class MainDashboard extends JFrame {
             }
             String roomName = (String) myBookingTableModel.getValueAt(row, 1);
             String timeSlot = (String) myBookingTableModel.getValueAt(row, 3);
-            switchTab("chat");
-            txtChatInput.setText("[Trao đổi về lịch " + roomName + " (" + timeSlot + ")]: ");
-            txtChatInput.requestFocus();
+            openChatWithColleague(null, "[Trao đổi về lịch " + roomName + " (" + timeSlot + ")]: ");
         });
         toolBar.add(btnChatMeeting);
 
@@ -743,53 +882,191 @@ public class MainDashboard extends JFrame {
         return panel;
     }
 
-    // ========== TAB 4: INTERNAL CHAT (TCP REAL-TIME) ==========
+    // ========== TAB 4: KÊNH TRAO ĐỔI NỘI BỘ & CHAT RIÊNG BẢO MẬT (1-1) ==========
     private JPanel createChatTab() {
-        JPanel panel = new JPanel(new BorderLayout(0, 14));
+        JPanel panel = new JPanel(new BorderLayout(0, 0));
         panel.setBackground(BG_WARM);
-        panel.setBorder(new EmptyBorder(22, 22, 18, 22));
+        panel.setBorder(new EmptyBorder(14, 16, 14, 16));
 
-        // Top Header
-        JPanel topHeader = new JPanel(new BorderLayout(0, 6));
-        topHeader.setOpaque(false);
+        // JSplitPane chia 2 phần: Bên trái là danh sách trò chuyện (300px), bên phải là khung chat
+        JSplitPane splitPane = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT);
+        splitPane.setDividerSize(6);
+        splitPane.setDividerLocation(300);
+        splitPane.setContinuousLayout(true);
+        splitPane.setBorder(BorderFactory.createLineBorder(BORDER_WARM, 1));
+        splitPane.setBackground(BG_WARM);
 
-        JLabel lblPageTitle = new JLabel("Kênh Trao Đổi Nội Bộ & Thảo Luận (TCP Socket)");
-        lblPageTitle.setFont(new Font("Segoe UI", Font.BOLD, 22));
-        lblPageTitle.setForeground(TEXT_PRIMARY);
+        // ==========================================
+        // 1. LEFT PANEL: DANH SÁCH CUỘC TRÒ CHUYỆN (CONVERSATIONS)
+        // ==========================================
+        JPanel leftPanel = new JPanel(new BorderLayout(0, 8));
+        leftPanel.setBackground(CARD_BG);
+        leftPanel.setBorder(new EmptyBorder(12, 12, 12, 12));
 
-        JLabel lblSub = new JLabel("Trao đổi thông tin trực tiếp theo thời gian thực (Real-time Broadcast) về công tác chuẩn bị phòng họp, tài liệu, thiết bị.");
-        lblSub.setFont(new Font("Segoe UI", Font.PLAIN, 12));
-        lblSub.setForeground(TEXT_SECONDARY);
+        // Left Header
+        JPanel leftHeader = new JPanel(new BorderLayout(0, 8));
+        leftHeader.setOpaque(false);
 
-        topHeader.add(lblPageTitle, BorderLayout.NORTH);
-        topHeader.add(lblSub, BorderLayout.CENTER);
-        panel.add(topHeader, BorderLayout.NORTH);
+        JLabel lblLeftTitle = new JLabel("Trò Chuyện & Thảo Luận");
+        lblLeftTitle.setFont(new Font("Segoe UI", Font.BOLD, 15));
+        lblLeftTitle.setForeground(TEXT_PRIMARY);
+        leftHeader.add(lblLeftTitle, BorderLayout.NORTH);
+
+        // Search bar
+        JPanel searchBar = new JPanel(new BorderLayout(6, 0));
+        searchBar.setBackground(INPUT_BG);
+        searchBar.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(BORDER_WARM, 1),
+                new EmptyBorder(6, 10, 6, 10)
+        ));
+        JLabel lblSearchIcon = new JLabel(AppIcon.search(14, TEXT_SECONDARY));
+        txtSearchChatUser = new JTextField();
+        txtSearchChatUser.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        txtSearchChatUser.setBackground(INPUT_BG);
+        txtSearchChatUser.setForeground(TEXT_PRIMARY);
+        txtSearchChatUser.setBorder(null);
+        txtSearchChatUser.putClientProperty("JTextField.placeholderText", "Tìm kiếm đồng nghiệp...");
+        txtSearchChatUser.addKeyListener(new java.awt.event.KeyAdapter() {
+            @Override
+            public void keyReleased(java.awt.event.KeyEvent e) {
+                renderConversationList();
+            }
+        });
+        searchBar.add(lblSearchIcon, BorderLayout.WEST);
+        searchBar.add(txtSearchChatUser, BorderLayout.CENTER);
+        leftHeader.add(searchBar, BorderLayout.CENTER);
+
+        leftPanel.add(leftHeader, BorderLayout.NORTH);
+
+        // Conversation list container
+        pnlConversationList = new JPanel();
+        pnlConversationList.setLayout(new BoxLayout(pnlConversationList, BoxLayout.Y_AXIS));
+        pnlConversationList.setBackground(CARD_BG);
+
+        JScrollPane scrollConv = new JScrollPane(pnlConversationList);
+        scrollConv.setBorder(null);
+        scrollConv.setBackground(CARD_BG);
+        scrollConv.getViewport().setBackground(CARD_BG);
+        scrollConv.getVerticalScrollBar().setUnitIncrement(14);
+        leftPanel.add(scrollConv, BorderLayout.CENTER);
+
+        splitPane.setLeftComponent(leftPanel);
+
+        // ==========================================
+        // 2. RIGHT PANEL: KHUNG TRÒ CHUYỆN (CHAT WINDOW)
+        // ==========================================
+        JPanel rightPanel = new JPanel(new BorderLayout(0, 0));
+        rightPanel.setBackground(CARD_BG);
+
+        // Right Header
+        JPanel rightHeader = new JPanel(new BorderLayout(12, 0));
+        rightHeader.setBackground(CARD_BG);
+        rightHeader.setBorder(BorderFactory.createCompoundBorder(
+                new MatteBorder(0, 0, 1, 0, BORDER_WARM),
+                new EmptyBorder(10, 16, 10, 16)
+        ));
+
+        pnlChatHeaderAvatar = new JPanel() {
+            @Override
+            protected void paintComponent(Graphics g) {
+                super.paintComponent(g);
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                if (isPublicChatSelected) {
+                    g2.setColor(new Color(236, 246, 241));
+                    g2.fillOval(0, 0, 42, 42);
+                    AppIcon.building(20, ACCENT_FOREST).paintIcon(this, g2, 11, 11);
+                } else {
+                    g2.setColor(new Color(254, 243, 235));
+                    g2.fillOval(0, 0, 42, 42);
+                    String initial = (selectedChatUser != null && !selectedChatUser.getFullName().isEmpty())
+                            ? selectedChatUser.getFullName().substring(0, 1).toUpperCase() : "U";
+                    g2.setFont(new Font("Segoe UI", Font.BOLD, 16));
+                    g2.setColor(ACCENT_TERRA);
+                    FontMetrics fm = g2.getFontMetrics();
+                    int tx = (42 - fm.stringWidth(initial)) / 2;
+                    int ty = (42 - fm.getHeight()) / 2 + fm.getAscent();
+                    g2.drawString(initial, tx, ty);
+                }
+                g2.dispose();
+            }
+        };
+        pnlChatHeaderAvatar.setOpaque(false);
+        pnlChatHeaderAvatar.setPreferredSize(new Dimension(42, 42));
+
+        JPanel headerTextGroup = new JPanel();
+        headerTextGroup.setOpaque(false);
+        headerTextGroup.setLayout(new BoxLayout(headerTextGroup, BoxLayout.Y_AXIS));
+
+        lblChatHeaderTitle = new JLabel("Kênh Nội Bộ Công Ty");
+        lblChatHeaderTitle.setFont(new Font("Segoe UI", Font.BOLD, 15));
+        lblChatHeaderTitle.setForeground(TEXT_PRIMARY);
+
+        lblChatHeaderSubtitle = new JLabel("Kênh trao đổi chung toàn thể ban điều hành và nhân viên");
+        lblChatHeaderSubtitle.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        lblChatHeaderSubtitle.setForeground(TEXT_SECONDARY);
+
+        JPanel headerMetaLine = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
+        headerMetaLine.setOpaque(false);
+        lblChatHeaderStatus = new JLabel("Công khai nội bộ (Real-time Broadcast)");
+        lblChatHeaderStatus.setFont(new Font("Segoe UI", Font.BOLD, 11));
+        lblChatHeaderStatus.setForeground(ACCENT_FOREST);
+
+        lblChatHeaderLock = new JLabel("");
+        lblChatHeaderLock.setFont(new Font("Segoe UI", Font.PLAIN, 11));
+        lblChatHeaderLock.setForeground(new Color(180, 83, 9));
+
+        headerMetaLine.add(lblChatHeaderStatus);
+        headerMetaLine.add(lblChatHeaderLock);
+
+        headerTextGroup.add(lblChatHeaderTitle);
+        headerTextGroup.add(Box.createVerticalStrut(2));
+        headerTextGroup.add(lblChatHeaderSubtitle);
+        headerTextGroup.add(Box.createVerticalStrut(3));
+        headerTextGroup.add(headerMetaLine);
+
+        JButton btnRefreshChat = new JButton("Tải lại");
+        btnRefreshChat.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        btnRefreshChat.setBackground(INPUT_BG);
+        btnRefreshChat.setForeground(TEXT_PRIMARY);
+        btnRefreshChat.setFocusPainted(false);
+        btnRefreshChat.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(BORDER_WARM, 1),
+                new EmptyBorder(5, 12, 5, 12)
+        ));
+        btnRefreshChat.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        btnRefreshChat.addActionListener(e -> {
+            loadColleagues();
+            loadChatHistory();
+        });
+
+        JPanel headerLeftPart = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 0));
+        headerLeftPart.setOpaque(false);
+        headerLeftPart.add(pnlChatHeaderAvatar);
+        headerLeftPart.add(headerTextGroup);
+
+        rightHeader.add(headerLeftPart, BorderLayout.WEST);
+        rightHeader.add(btnRefreshChat, BorderLayout.EAST);
+        rightPanel.add(rightHeader, BorderLayout.NORTH);
 
         // Messages Area (Card giấy mộc)
         pnlChatMessages = new JPanel();
         pnlChatMessages.setLayout(new BoxLayout(pnlChatMessages, BoxLayout.Y_AXIS));
         pnlChatMessages.setBackground(CARD_BG);
-        pnlChatMessages.setBorder(new EmptyBorder(16, 16, 16, 16));
-
-        // Tin nhắn chào mừng mặc định
-        JLabel lblWelcome = new JLabel("<html><i style='color:#78716C;'>=== Kênh trao đổi nội bộ đã kết nối máy chủ TCP. Bắt đầu nhắn tin trao đổi bên dưới... ===</i></html>");
-        lblWelcome.setFont(new Font("Segoe UI", Font.PLAIN, 12));
-        lblWelcome.setAlignmentX(Component.LEFT_ALIGNMENT);
-        pnlChatMessages.add(lblWelcome);
-        pnlChatMessages.add(Box.createVerticalStrut(14));
+        pnlChatMessages.setBorder(new EmptyBorder(16, 18, 16, 18));
 
         scrollChat = new JScrollPane(pnlChatMessages);
         scrollChat.setBackground(CARD_BG);
         scrollChat.getViewport().setBackground(CARD_BG);
-        scrollChat.setBorder(BorderFactory.createLineBorder(BORDER_WARM, 1));
+        scrollChat.setBorder(null);
         scrollChat.getVerticalScrollBar().setUnitIncrement(14);
-        panel.add(scrollChat, BorderLayout.CENTER);
+        rightPanel.add(scrollChat, BorderLayout.CENTER);
 
         // Bottom Input Bar
         JPanel inputBar = new JPanel(new BorderLayout(10, 0));
         inputBar.setBackground(CARD_BG);
         inputBar.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(BORDER_WARM, 1),
+                new MatteBorder(1, 0, 0, 0, BORDER_WARM),
                 new EmptyBorder(10, 14, 10, 14)
         ));
 
@@ -830,7 +1107,10 @@ public class MainDashboard extends JFrame {
 
         inputBar.add(txtChatInput, BorderLayout.CENTER);
         inputBar.add(btnSendChat, BorderLayout.EAST);
-        panel.add(inputBar, BorderLayout.SOUTH);
+        rightPanel.add(inputBar, BorderLayout.SOUTH);
+
+        splitPane.setRightComponent(rightPanel);
+        panel.add(splitPane, BorderLayout.CENTER);
 
         return panel;
     }
@@ -928,7 +1208,87 @@ public class MainDashboard extends JFrame {
                 try {
                     com.meeting.common.model.ChatMessage chat = JsonUtil.fromJson(res.getData(), com.meeting.common.model.ChatMessage.class);
                     if (chat != null) {
-                        appendChatMessage(chat);
+                        if ("chat".equals(currentCardName) && isPublicChatSelected) {
+                            appendChatMessage(chat, true);
+                        } else {
+                            if (currentUser == null || chat.getSenderId() != currentUser.getId()) {
+                                publicUnreadCount++;
+                                updateSidebarChatBadge();
+                                renderConversationList();
+
+                                // Hiện popup thông báo nổi góc màn hình phong cách Messenger
+                                NotificationToast.showNotification(
+                                        "Kênh Nội Bộ",
+                                        chat.getSenderName(),
+                                        chat.getContent(),
+                                        false,
+                                        () -> {
+                                            toFront();
+                                            requestFocus();
+                                            switchTab("chat");
+                                            selectPublicChat();
+                                        }
+                                );
+                            }
+                        }
+                    }
+                } catch (Exception ignored) {}
+                return;
+            }
+
+            if (res.getAction() == ActionType.CHAT_PRIVATE_RECEIVE) {
+                try {
+                    com.meeting.common.model.ChatMessage chat = JsonUtil.fromJson(res.getData(), com.meeting.common.model.ChatMessage.class);
+                    if (chat != null) {
+                        if ("chat".equals(currentCardName) && !isPublicChatSelected && selectedChatUser != null && selectedChatUser.getId() == chat.getSenderId()) {
+                            appendChatMessage(chat, true);
+                            new Thread(() -> client.sendRequest(new Request(ActionType.MARK_CHAT_READ, currentUser.getId(), String.valueOf(chat.getSenderId())))).start();
+                        } else {
+                            // Người dùng đang ở tab khác hoặc đang chat với đồng nghiệp khác
+                            int unread = privateUnreadCounts.getOrDefault(chat.getSenderId(), 0) + 1;
+                            privateUnreadCounts.put(chat.getSenderId(), unread);
+                            updateSidebarChatBadge();
+                            renderConversationList();
+
+                            // Hiện popup thông báo nổi góc màn hình phong cách Messenger
+                            NotificationToast.showNotification(
+                                    "Tin Nhắn Riêng",
+                                    chat.getSenderName(),
+                                    chat.getContent(),
+                                    true,
+                                    () -> {
+                                        toFront();
+                                        requestFocus();
+                                        switchTab("chat");
+                                        selectPrivateChatUser(chat.getSenderId());
+                                    }
+                            );
+                        }
+                    }
+                } catch (Exception ignored) {}
+                return;
+            }
+
+            if (res.getAction() == ActionType.USER_STATUS_UPDATE) {
+                try {
+                    Map<String, Object> map = JsonUtil.fromJson(res.getData(), new TypeToken<Map<String, Object>>() {}.getType());
+                    if (map != null && map.get("userId") != null && map.get("online") != null) {
+                        int uId = ((Number) map.get("userId")).intValue();
+                        boolean online = (Boolean) map.get("online");
+                        synchronized (onlineUserIds) {
+                            if (online) {
+                                onlineUserIds.add(uId);
+                            } else {
+                                onlineUserIds.remove(uId);
+                            }
+                        }
+                        renderConversationList();
+                        if (!isPublicChatSelected && selectedChatUser != null && selectedChatUser.getId() == uId) {
+                            if (lblChatHeaderStatus != null) {
+                                lblChatHeaderStatus.setText(online ? "Đang trực tuyến (Online)" : "Ngoại tuyến (Offline)");
+                                lblChatHeaderStatus.setForeground(online ? new Color(22, 101, 52) : TEXT_SECONDARY);
+                            }
+                        }
                     }
                 } catch (Exception ignored) {}
                 return;
@@ -983,7 +1343,8 @@ public class MainDashboard extends JFrame {
         if (btnNotifications != null) {
             btnNotifications.setText("Thông báo (" + notificationHistory.size() + ")");
             btnNotifications.setIcon(AppIcon.bell(14, ACCENT_TERRA));
-            btnNotifications.setIconTextGap(6);
+            btnNotifications.setIconTextGap(7);
+            btnNotifications.repaint();
         }
     }
 
@@ -1091,6 +1452,8 @@ public class MainDashboard extends JFrame {
         loadBookingsByDate();
         loadMyBookings();
         loadNotifications();
+        loadColleagues();
+        loadChatHistory();
         if (currentUser.isAdmin()) {
             loadAdminUsers();
         }
@@ -1407,73 +1770,500 @@ public class MainDashboard extends JFrame {
         }).start();
     }
 
+    // ==========================================
+    // LOGIC XỬ LÝ CHAT NỘI BỘ & CHAT RIÊNG (1-1)
+    // ==========================================
+    private void renderConversationList() {
+        if (pnlConversationList == null) return;
+        pnlConversationList.removeAll();
+
+        // 1. MỤC KÊNH NỘI BỘ TOÀN CÔNG TY (Pinned top)
+        JPanel itemPublic = new JPanel(new BorderLayout(10, 0));
+        itemPublic.setMaximumSize(new Dimension(285, 54));
+        itemPublic.setPreferredSize(new Dimension(285, 54));
+        itemPublic.setBackground(isPublicChatSelected ? new Color(236, 246, 241) : CARD_BG);
+        itemPublic.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createMatteBorder(0, 0, 1, 0, BORDER_WARM),
+                new EmptyBorder(8, 10, 8, 10)
+        ));
+        itemPublic.setCursor(new Cursor(Cursor.HAND_CURSOR));
+
+        JLabel iconPub = new JLabel(AppIcon.building(20, ACCENT_FOREST));
+        itemPublic.add(iconPub, BorderLayout.WEST);
+
+        JPanel infoPub = new JPanel();
+        infoPub.setOpaque(false);
+        infoPub.setLayout(new BoxLayout(infoPub, BoxLayout.Y_AXIS));
+        JLabel lblPubName = new JLabel("Kênh Nội Bộ Công Ty");
+        lblPubName.setFont(new Font("Segoe UI", Font.BOLD, 13));
+        lblPubName.setForeground(isPublicChatSelected ? ACCENT_FOREST : TEXT_PRIMARY);
+        JLabel lblPubSub = new JLabel("Thảo luận chung toàn công ty");
+        lblPubSub.setFont(new Font("Segoe UI", Font.PLAIN, 11));
+        lblPubSub.setForeground(TEXT_SECONDARY);
+        infoPub.add(lblPubName);
+        infoPub.add(lblPubSub);
+        itemPublic.add(infoPub, BorderLayout.CENTER);
+
+        if (publicUnreadCount > 0) {
+            JLabel badge = new JLabel(" " + publicUnreadCount + " ");
+            badge.setFont(new Font("Segoe UI", Font.BOLD, 10));
+            badge.setForeground(Color.WHITE);
+            badge.setOpaque(true);
+            badge.setBackground(ACCENT_TERRA);
+            badge.setBorder(new EmptyBorder(2, 6, 2, 6));
+            itemPublic.add(badge, BorderLayout.EAST);
+        }
+
+        itemPublic.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseClicked(MouseEvent e) {
+                selectPublicChat();
+            }
+        });
+        pnlConversationList.add(itemPublic);
+
+        // 2. PHÂN ĐOẠN: CHAT RIÊNG BẢO MẬT (1-1)
+        JPanel sepPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 6));
+        sepPanel.setOpaque(false);
+        sepPanel.setMaximumSize(new Dimension(285, 26));
+        JLabel lblSep = new JLabel("CHAT RIÊNG BẢO MẬT (1-1)");
+        lblSep.setFont(new Font("Segoe UI", Font.BOLD, 10));
+        lblSep.setForeground(TEXT_SECONDARY);
+        sepPanel.add(lblSep);
+        pnlConversationList.add(sepPanel);
+
+        // 3. DANH SÁCH ĐỒNG NGHIỆP
+        String filter = (txtSearchChatUser != null) ? txtSearchChatUser.getText().trim().toLowerCase() : "";
+        synchronized (allColleagues) {
+            for (User u : allColleagues) {
+                if (currentUser != null && u.getId() == currentUser.getId()) {
+                    continue; // Không hiển thị chính mình
+                }
+                if (!filter.isEmpty()) {
+                    String matchStr = (u.getFullName() + " " + u.getDepartment() + " " + u.getUsername() + " " + u.getRole()).toLowerCase();
+                    if (!matchStr.contains(filter)) {
+                        continue;
+                    }
+                }
+
+                boolean isSelected = !isPublicChatSelected && selectedChatUser != null && selectedChatUser.getId() == u.getId();
+                boolean isOnline;
+                synchronized (onlineUserIds) {
+                    isOnline = onlineUserIds.contains(u.getId());
+                }
+                int unread = privateUnreadCounts.getOrDefault(u.getId(), 0);
+
+                JPanel itemUser = new JPanel(new BorderLayout(10, 0));
+                itemUser.setMaximumSize(new Dimension(285, 54));
+                itemUser.setPreferredSize(new Dimension(285, 54));
+                itemUser.setBackground(isSelected ? new Color(254, 243, 235) : CARD_BG);
+                itemUser.setBorder(BorderFactory.createCompoundBorder(
+                        BorderFactory.createMatteBorder(0, 0, 1, 0, BORDER_WARM),
+                        new EmptyBorder(8, 10, 8, 10)
+                ));
+                itemUser.setCursor(new Cursor(Cursor.HAND_CURSOR));
+
+                // Avatar tròn có chấm online
+                JPanel avPanel = new JPanel() {
+                    @Override
+                    protected void paintComponent(Graphics g) {
+                        super.paintComponent(g);
+                        Graphics2D g2 = (Graphics2D) g.create();
+                        g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                        g2.setColor(isSelected ? new Color(254, 215, 195) : new Color(240, 237, 230));
+                        g2.fillOval(0, 0, 36, 36);
+                        String init = (u.getFullName() != null && !u.getFullName().isEmpty())
+                                ? u.getFullName().substring(0, 1).toUpperCase() : "U";
+                        g2.setFont(new Font("Segoe UI", Font.BOLD, 14));
+                        g2.setColor(isSelected ? ACCENT_TERRA : ACCENT_FOREST);
+                        FontMetrics fm = g2.getFontMetrics();
+                        int tx = (36 - fm.stringWidth(init)) / 2;
+                        int ty = (36 - fm.getHeight()) / 2 + fm.getAscent();
+                        g2.drawString(init, tx, ty);
+
+                        // Chấm trạng thái Online/Offline
+                        g2.setColor(isOnline ? new Color(34, 197, 94) : new Color(156, 163, 175));
+                        g2.fillOval(24, 24, 10, 10);
+                        g2.setColor(Color.WHITE);
+                        g2.setStroke(new BasicStroke(1.2f));
+                        g2.drawOval(24, 24, 10, 10);
+                        g2.dispose();
+                    }
+                };
+                avPanel.setOpaque(false);
+                avPanel.setPreferredSize(new Dimension(38, 38));
+                itemUser.add(avPanel, BorderLayout.WEST);
+
+                JPanel info = new JPanel();
+                info.setOpaque(false);
+                info.setLayout(new BoxLayout(info, BoxLayout.Y_AXIS));
+
+                JLabel lblName = new JLabel(u.getFullName());
+                lblName.setFont(new Font("Segoe UI", Font.BOLD, 12));
+                lblName.setForeground(isSelected ? ACCENT_TERRA : TEXT_PRIMARY);
+
+                String sub = u.getDepartment() + " • " + (isOnline ? "Online" : "Offline");
+                JLabel lblSub = new JLabel(sub);
+                lblSub.setFont(new Font("Segoe UI", Font.PLAIN, 11));
+                lblSub.setForeground(isOnline ? new Color(22, 101, 52) : TEXT_SECONDARY);
+
+                info.add(lblName);
+                info.add(lblSub);
+                itemUser.add(info, BorderLayout.CENTER);
+
+                if (unread > 0) {
+                    JLabel badge = new JLabel(" " + unread + " ");
+                    badge.setFont(new Font("Segoe UI", Font.BOLD, 10));
+                    badge.setForeground(Color.WHITE);
+                    badge.setOpaque(true);
+                    badge.setBackground(new Color(220, 38, 38));
+                    badge.setBorder(new EmptyBorder(2, 6, 2, 6));
+                    itemUser.add(badge, BorderLayout.EAST);
+                }
+
+                itemUser.addMouseListener(new MouseAdapter() {
+                    @Override
+                    public void mouseClicked(MouseEvent e) {
+                        selectPrivateChatUser(u);
+                    }
+                });
+
+                pnlConversationList.add(itemUser);
+            }
+        }
+
+        pnlConversationList.revalidate();
+        pnlConversationList.repaint();
+    }
+
+    private void selectPublicChat() {
+        isPublicChatSelected = true;
+        selectedChatUser = null;
+        publicUnreadCount = 0;
+        updateSidebarChatBadge();
+
+        if (lblChatHeaderTitle != null) lblChatHeaderTitle.setText("Kênh Nội Bộ Công Ty");
+        if (lblChatHeaderSubtitle != null) lblChatHeaderSubtitle.setText("Kênh trao đổi chung toàn thể ban điều hành và nhân viên");
+        if (lblChatHeaderStatus != null) {
+            lblChatHeaderStatus.setText("Công khai nội bộ (Real-time Broadcast)");
+            lblChatHeaderStatus.setForeground(ACCENT_FOREST);
+        }
+        if (lblChatHeaderLock != null) lblChatHeaderLock.setText("");
+        if (pnlChatHeaderAvatar != null) pnlChatHeaderAvatar.repaint();
+
+        renderConversationList();
+        loadChatHistory();
+    }
+
+    private void selectPrivateChatUser(User u) {
+        if (u == null) return;
+        isPublicChatSelected = false;
+        selectedChatUser = u;
+        privateUnreadCounts.remove(u.getId());
+        updateSidebarChatBadge();
+
+        // Gửi báo server đã đọc tin nhắn riêng từ người này
+        new Thread(() -> client.sendRequest(new Request(ActionType.MARK_CHAT_READ, currentUser.getId(), String.valueOf(u.getId())))).start();
+
+        if (lblChatHeaderTitle != null) lblChatHeaderTitle.setText(u.getFullName());
+        if (lblChatHeaderSubtitle != null) {
+            String emailStr = (u.getEmail() != null && !u.getEmail().isEmpty()) ? " • " + u.getEmail() : "";
+            lblChatHeaderSubtitle.setText(u.getDepartment() + " • " + u.getRole() + emailStr);
+        }
+        boolean isOnline;
+        synchronized (onlineUserIds) {
+            isOnline = onlineUserIds.contains(u.getId());
+        }
+        if (lblChatHeaderStatus != null) {
+            lblChatHeaderStatus.setText(isOnline ? "Đang trực tuyến (Online)" : "Ngoại tuyến (Offline)");
+            lblChatHeaderStatus.setForeground(isOnline ? new Color(22, 101, 52) : TEXT_SECONDARY);
+        }
+        if (lblChatHeaderLock != null) lblChatHeaderLock.setText("• Tin nhắn riêng tư bảo mật");
+        if (pnlChatHeaderAvatar != null) pnlChatHeaderAvatar.repaint();
+
+        renderConversationList();
+        loadChatHistory();
+    }
+
+    private void selectPrivateChatUser(int userId) {
+        User target = null;
+        synchronized (allColleagues) {
+            for (User u : allColleagues) {
+                if (u.getId() == userId) {
+                    target = u;
+                    break;
+                }
+            }
+        }
+        if (target != null) {
+            selectPrivateChatUser(target);
+        } else {
+            selectPublicChat();
+        }
+    }
+
+    private void updateSidebarChatBadge() {
+        int totalUnread = publicUnreadCount;
+        for (int cnt : privateUnreadCounts.values()) {
+            totalUnread += cnt;
+        }
+        if (lblNavChatText != null) {
+            if (totalUnread > 0) {
+                lblNavChatText.setText("Kênh Trao Đổi (Chat) [" + totalUnread + "]");
+                lblNavChatText.setForeground(new Color(254, 215, 170));
+            } else {
+                lblNavChatText.setText("Kênh Trao Đổi (Chat)");
+                lblNavChatText.setForeground(new Color(245, 243, 239, 200));
+            }
+        }
+    }
+
+    private void loadColleagues() {
+        new Thread(() -> {
+            Request reqUsers = new Request(ActionType.GET_ALL_USERS);
+            Response resUsers = client.sendRequest(reqUsers);
+            if (resUsers != null && resUsers.isSuccess()) {
+                List<User> list = JsonUtil.fromJson(resUsers.getData(), new TypeToken<List<User>>() {}.getType());
+                if (list != null) {
+                    synchronized (allColleagues) {
+                        allColleagues.clear();
+                        allColleagues.addAll(list);
+                    }
+                }
+            }
+
+            Request reqOnline = new Request(ActionType.GET_ONLINE_USERS);
+            Response resOnline = client.sendRequest(reqOnline);
+            if (resOnline != null && resOnline.isSuccess()) {
+                List<Integer> ids = JsonUtil.fromJson(resOnline.getData(), new TypeToken<List<Integer>>() {}.getType());
+                if (ids != null) {
+                    synchronized (onlineUserIds) {
+                        onlineUserIds.clear();
+                        onlineUserIds.addAll(ids);
+                    }
+                }
+            }
+
+            SwingUtilities.invokeLater(this::renderConversationList);
+        }).start();
+    }
+
+    private void loadChatHistory() {
+        if (pnlChatMessages == null) return;
+        pnlChatMessages.removeAll();
+
+        // Banner đầu hội thoại
+        JPanel welcomeCard = new JPanel(new FlowLayout(FlowLayout.CENTER));
+        welcomeCard.setOpaque(false);
+        String bannerText;
+        if (isPublicChatSelected) {
+            bannerText = "<html><center><i style='color:#78716C;'>=== Kênh trao đổi nội bộ chung (Đã kết nối TCP Server) ===<br>Mọi tin nhắn tại đây được chia sẻ tới tất cả thành viên trong công ty.</i></center></html>";
+        } else {
+            String peerName = selectedChatUser != null ? selectedChatUser.getFullName() : "Đồng nghiệp";
+            bannerText = "<html><center><b style='color:#C25E34;'>CUỘC TRÒ CHUYỆN BẢO MẬT 1-1 VỚI " + escapeHtml(peerName.toUpperCase()) + "</b><br><i style='color:#78716C;'>Tin nhắn được mã hóa nội bộ và chỉ hiển thị cho 2 bạn.</i></center></html>";
+        }
+        JLabel lblWelcome = new JLabel(bannerText);
+        if (!isPublicChatSelected) {
+            lblWelcome.setIcon(AppIcon.lock(16, ACCENT_TERRA));
+            lblWelcome.setIconTextGap(8);
+        }
+        lblWelcome.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        welcomeCard.add(lblWelcome);
+        pnlChatMessages.add(welcomeCard);
+        pnlChatMessages.add(Box.createVerticalStrut(14));
+        pnlChatMessages.revalidate();
+        pnlChatMessages.repaint();
+
+        new Thread(() -> {
+            Map<String, Object> reqData = new HashMap<>();
+            if (isPublicChatSelected) {
+                reqData.put("type", "PUBLIC");
+            } else {
+                if (selectedChatUser == null) return;
+                reqData.put("type", "PRIVATE");
+                reqData.put("targetUserId", selectedChatUser.getId());
+            }
+
+            Request req = new Request(ActionType.GET_CHAT_HISTORY, JsonUtil.toJson(reqData), currentUser.getId());
+            Response res = client.sendRequest(req);
+            if (res != null && res.isSuccess()) {
+                List<ChatMessage> list = JsonUtil.fromJson(res.getData(), new TypeToken<List<ChatMessage>>() {}.getType());
+                if (list != null) {
+                    SwingUtilities.invokeLater(() -> {
+                        for (ChatMessage msg : list) {
+                            appendChatMessage(msg, false);
+                        }
+                        SwingUtilities.invokeLater(() -> {
+                            if (scrollChat != null) {
+                                JScrollBar vertical = scrollChat.getVerticalScrollBar();
+                                vertical.setValue(vertical.getMaximum());
+                            }
+                        });
+                    });
+                }
+            }
+        }).start();
+    }
+
+    private void openChatWithColleague(String hostName, String prefix) {
+        switchTab("chat");
+        if (hostName != null && !hostName.trim().isEmpty()) {
+            User target = null;
+            synchronized (allColleagues) {
+                for (User u : allColleagues) {
+                    if (u.getFullName().equalsIgnoreCase(hostName.trim()) || hostName.trim().contains(u.getFullName())) {
+                        target = u;
+                        break;
+                    }
+                }
+            }
+            if (target != null && target.getId() != currentUser.getId()) {
+                selectPrivateChatUser(target);
+            } else {
+                selectPublicChat();
+            }
+        } else {
+            selectPublicChat();
+        }
+        if (txtChatInput != null && prefix != null) {
+            txtChatInput.setText(prefix);
+            txtChatInput.requestFocus();
+        }
+    }
+
     private void doSendChatMessage() {
         if (txtChatInput == null) return;
         String text = txtChatInput.getText().trim();
         if (text.isEmpty()) return;
 
         txtChatInput.setText("");
+
+        ChatMessage msg = new ChatMessage();
+        msg.setContent(text);
+
+        if (isPublicChatSelected) {
+            msg.setType("PUBLIC");
+            msg.setReceiverId(0);
+        } else {
+            if (selectedChatUser == null) {
+                JOptionPane.showMessageDialog(this, "Vui lòng chọn một người đồng nghiệp từ danh sách bên trái để chat riêng!", "Chưa chọn người nhận", JOptionPane.WARNING_MESSAGE);
+                return;
+            }
+            msg.setType("PRIVATE");
+            msg.setReceiverId(selectedChatUser.getId());
+            msg.setReceiverName(selectedChatUser.getFullName());
+        }
+
         new Thread(() -> {
-            Request req = new Request(ActionType.SEND_CHAT_MESSAGE, currentUser.getId(), text);
-            client.sendRequest(req);
+            Request req = new Request(ActionType.SEND_CHAT_MESSAGE, JsonUtil.toJson(msg), currentUser.getId());
+            Response res = client.sendRequest(req);
+            if (res != null && res.isSuccess()) {
+                if (!isPublicChatSelected) {
+                    // Chat riêng: hiển thị ngay tin nhắn vừa gửi thành công trên khung chat của mình
+                    try {
+                        ChatMessage savedMsg = JsonUtil.fromJson(res.getData(), ChatMessage.class);
+                        if (savedMsg != null) {
+                            appendChatMessage(savedMsg, true);
+                        }
+                    } catch (Exception ignored) {}
+                }
+            } else {
+                String err = res != null ? res.getMessage() : "Lỗi gửi tin nhắn qua TCP!";
+                SwingUtilities.invokeLater(() -> {
+                    JOptionPane.showMessageDialog(this, err, "Lỗi gửi tin nhắn", JOptionPane.ERROR_MESSAGE);
+                });
+            }
         }).start();
     }
 
-    private void appendChatMessage(com.meeting.common.model.ChatMessage chat) {
+    private void appendChatMessage(com.meeting.common.model.ChatMessage chat, boolean autoScroll) {
         if (pnlChatMessages == null) return;
         SwingUtilities.invokeLater(() -> {
-            boolean isMe = currentUser != null && currentUser.getFullName().equalsIgnoreCase(chat.getSenderName());
+            // Kiểm tra tin nhắn có thuộc về hội thoại đang mở hay không
+            boolean matches = false;
+            if (isPublicChatSelected) {
+                if (!chat.isPrivate()) {
+                    matches = true;
+                }
+            } else if (selectedChatUser != null && chat.isPrivate()) {
+                int targetId = selectedChatUser.getId();
+                int myId = currentUser != null ? currentUser.getId() : 0;
+                if ((chat.getSenderId() == targetId && chat.getReceiverId() == myId) ||
+                    (chat.getSenderId() == myId && chat.getReceiverId() == targetId)) {
+                    matches = true;
+                }
+            }
 
-            JPanel bubbleCard = new JPanel(new BorderLayout(6, 4));
-            bubbleCard.setMaximumSize(new Dimension(850, 75));
-            bubbleCard.setAlignmentX(Component.LEFT_ALIGNMENT);
+            if (!matches) {
+                return; // Tin nhắn thuộc cuộc trò chuyện khác
+            }
 
-            // Header line
-            JPanel headerLine = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
+            boolean isMe = currentUser != null && currentUser.getId() == chat.getSenderId();
+
+            JPanel rowPanel = new JPanel(new FlowLayout(isMe ? FlowLayout.RIGHT : FlowLayout.LEFT, 0, 0));
+            rowPanel.setOpaque(false);
+            rowPanel.setMaximumSize(new Dimension(880, 110));
+            rowPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
+
+            JPanel bubbleCard = new JPanel(new BorderLayout(4, 3));
+            bubbleCard.setOpaque(false);
+
+            // Header dòng tin
+            JPanel headerLine = new JPanel(new FlowLayout(isMe ? FlowLayout.RIGHT : FlowLayout.LEFT, 6, 0));
             headerLine.setOpaque(false);
 
-            String senderTitle = isMe ? "Bạn (" + chat.getDepartment() + ")" : chat.getSenderName() + " (" + chat.getDepartment() + ")";
+            String senderTitle = isMe ? "Bạn" : chat.getSenderName() + " (" + (chat.getDepartment() != null ? chat.getDepartment() : "Công ty") + ")";
             JLabel lblSender = new JLabel(senderTitle);
-            lblSender.setFont(new Font("Segoe UI", Font.BOLD, 12));
+            lblSender.setFont(new Font("Segoe UI", Font.BOLD, 11));
             lblSender.setForeground(isMe ? ACCENT_TERRA : ACCENT_FOREST);
 
-            JLabel lblTime = new JLabel(chat.getTimestamp());
-            lblTime.setFont(new Font("Segoe UI", Font.PLAIN, 11));
+            JLabel lblTime = new JLabel(chat.getTimestamp() != null ? chat.getTimestamp() : "");
+            lblTime.setFont(new Font("Segoe UI", Font.PLAIN, 10));
             lblTime.setForeground(TEXT_SECONDARY);
 
-            headerLine.add(lblSender);
-            headerLine.add(lblTime);
+            if (isMe) {
+                headerLine.add(lblTime);
+                headerLine.add(lblSender);
+            } else {
+                headerLine.add(lblSender);
+                headerLine.add(lblTime);
+            }
 
             // Message Bubble
             JPanel bubble = new JPanel(new BorderLayout());
-            bubble.setBackground(isMe ? new Color(254, 243, 235) : new Color(245, 243, 239));
+            bubble.setBackground(isMe ? new Color(254, 243, 235) : new Color(250, 249, 246));
             bubble.setBorder(BorderFactory.createCompoundBorder(
                     BorderFactory.createLineBorder(isMe ? new Color(254, 215, 195) : BORDER_WARM, 1),
                     new EmptyBorder(8, 12, 8, 12)
             ));
 
-            JLabel lblMsg = new JLabel("<html><body style='width: 650px;'>" + escapeHtml(chat.getContent()) + "</body></html>");
+            JLabel lblMsg = new JLabel("<html><body style='width: 480px; font-family: Segoe UI;'>" + escapeHtml(chat.getContent()) + "</body></html>");
             lblMsg.setFont(new Font("Segoe UI", Font.PLAIN, 13));
             lblMsg.setForeground(TEXT_PRIMARY);
             bubble.add(lblMsg, BorderLayout.CENTER);
 
-            bubbleCard.setOpaque(false);
             bubbleCard.add(headerLine, BorderLayout.NORTH);
             bubbleCard.add(bubble, BorderLayout.CENTER);
+            rowPanel.add(bubbleCard);
 
-            pnlChatMessages.add(bubbleCard);
-            pnlChatMessages.add(Box.createVerticalStrut(10));
+            pnlChatMessages.add(rowPanel);
+            pnlChatMessages.add(Box.createVerticalStrut(8));
             pnlChatMessages.revalidate();
             pnlChatMessages.repaint();
 
-            // Auto scroll down
-            SwingUtilities.invokeLater(() -> {
-                if (scrollChat != null) {
-                    JScrollBar vertical = scrollChat.getVerticalScrollBar();
-                    vertical.setValue(vertical.getMaximum());
-                }
-            });
+            if (autoScroll) {
+                SwingUtilities.invokeLater(() -> {
+                    if (scrollChat != null) {
+                        JScrollBar vertical = scrollChat.getVerticalScrollBar();
+                        vertical.setValue(vertical.getMaximum());
+                    }
+                });
+            }
         });
+    }
+
+    private void appendChatMessage(com.meeting.common.model.ChatMessage chat) {
+        appendChatMessage(chat, true);
     }
 
     private String escapeHtml(String text) {

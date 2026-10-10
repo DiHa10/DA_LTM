@@ -13,7 +13,8 @@ public class AppIcon implements Icon {
 
     public enum Type {
         MAIL, CHECK, CLOCK, LIGHTNING, ADD_USER, EDIT,
-        AVATAR, CALENDAR, BOOKINGS, CHAT, GEAR, USERS, BELL, SEND, GLYPH
+        AVATAR, CALENDAR, BOOKINGS, CHAT, GEAR, USERS, BELL, SEND, GLYPH,
+        LOCK, SEARCH, BUILDING
     }
 
     private final Type type;
@@ -49,6 +50,9 @@ public class AppIcon implements Icon {
     public static AppIcon bell(int size, Color color) { return new AppIcon(Type.BELL, size, color); }
     public static AppIcon send(int size, Color color) { return new AppIcon(Type.SEND, size, color); }
     public static AppIcon glyph(String glyph, int size, Color color) { return new AppIcon(Type.GLYPH, size, color, glyph); }
+    public static AppIcon lock(int size, Color color) { return new AppIcon(Type.LOCK, size, color); }
+    public static AppIcon search(int size, Color color) { return new AppIcon(Type.SEARCH, size, color); }
+    public static AppIcon building(int size, Color color) { return new AppIcon(Type.BUILDING, size, color); }
 
     public static Font getEmojiFont(int style, float size) {
         if (emojiFontCache == null) {
@@ -254,6 +258,48 @@ public class AppIcon implements Icon {
                     int strY = y + fm.getAscent() + (size - fm.getHeight()) / 2;
                     g2.drawString(glyphText, x, strY);
                 }
+            }
+            case LOCK -> {
+                float sw = size * 0.44f;
+                float sh = size * 0.38f;
+                float sx = x + (size - sw) / 2f;
+                float sy = y + size * 0.12f;
+                g2.draw(new Arc2D.Float(sx, sy, sw, sh * 1.6f, 0, 180, Arc2D.OPEN));
+                float bw = size * 0.62f;
+                float bh = size * 0.46f;
+                float bx = x + (size - bw) / 2f;
+                float by = y + size * 0.42f;
+                g2.fill(new RoundRectangle2D.Float(bx, by, bw, bh, size * 0.16f, size * 0.16f));
+                Color prev = g2.getColor();
+                g2.setColor(Color.WHITE);
+                g2.fill(new Ellipse2D.Float(x + size * 0.44f, by + size * 0.12f, size * 0.12f, size * 0.12f));
+                g2.fillRect((int) (x + size * 0.48f), (int) (by + size * 0.20f), (int) Math.max(1.5f, size * 0.05f), (int) (size * 0.15f));
+                g2.setColor(prev);
+            }
+            case SEARCH -> {
+                float r = size * 0.30f;
+                float cx = x + size * 0.16f;
+                float cy = y + size * 0.16f;
+                g2.draw(new Ellipse2D.Float(cx, cy, r * 2, r * 2));
+                float hx1 = cx + r * 1.55f;
+                float hy1 = cy + r * 1.55f;
+                float hx2 = x + size * 0.86f;
+                float hy2 = y + size * 0.86f;
+                g2.drawLine((int) hx1, (int) hy1, (int) hx2, (int) hy2);
+            }
+            case BUILDING -> {
+                float bw = size * 0.64f;
+                float bh = size * 0.74f;
+                float bx = x + size * 0.18f;
+                float by = y + size * 0.14f;
+                g2.draw(new RoundRectangle2D.Float(bx, by, bw, bh, 3, 3));
+                float ww = size * 0.10f;
+                float wh = size * 0.10f;
+                g2.fillRect((int) (bx + size * 0.10f), (int) (by + size * 0.14f), (int) ww, (int) wh);
+                g2.fillRect((int) (bx + size * 0.30f), (int) (by + size * 0.14f), (int) ww, (int) wh);
+                g2.fillRect((int) (bx + size * 0.10f), (int) (by + size * 0.32f), (int) ww, (int) wh);
+                g2.fillRect((int) (bx + size * 0.30f), (int) (by + size * 0.32f), (int) ww, (int) wh);
+                g2.fillRect((int) (bx + size * 0.20f), (int) (by + bh - size * 0.20f), (int) (size * 0.18f), (int) (size * 0.20f));
             }
         }
 

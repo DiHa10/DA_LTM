@@ -114,7 +114,9 @@ public class BookingDialog extends JDialog {
         roomRowPanel.setOpaque(false);
         roomRowPanel.add(cboRooms, BorderLayout.CENTER);
 
-        JButton btnFilterFree = new JButton("🔍 Tìm phòng trống");
+        JButton btnFilterFree = new JButton("Tìm phòng trống");
+        btnFilterFree.setIcon(AppIcon.search(13, new Color(22, 101, 52)));
+        btnFilterFree.setIconTextGap(6);
         btnFilterFree.setToolTipText("Lọc các phòng còn trống theo ngày & khung giờ");
         btnFilterFree.setFont(new Font("Segoe UI", Font.BOLD, 12));
         btnFilterFree.setBackground(new Color(240, 253, 244));

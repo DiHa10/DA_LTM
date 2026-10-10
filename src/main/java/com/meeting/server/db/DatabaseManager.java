@@ -84,7 +84,26 @@ public class DatabaseManager {
                 );
             """);
 
-            // 5. Chèn dữ liệu mẫu nếu bảng Users trống
+            // 5. Tạo bảng ChatMessages (Lưu trữ tin nhắn kênh chung và chat riêng tư bảo mật)
+            stmt.execute("""
+                CREATE TABLE IF NOT EXISTS chat_messages (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    sender_id INTEGER NOT NULL,
+                    receiver_id INTEGER DEFAULT 0,
+                    sender_name TEXT NOT NULL,
+                    sender_dept TEXT,
+                    receiver_name TEXT,
+                    content TEXT NOT NULL,
+                    type TEXT DEFAULT 'PUBLIC',
+                    is_read INTEGER DEFAULT 0,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (sender_id) REFERENCES users(id)
+                );
+            """);
+            stmt.execute("CREATE INDEX IF NOT EXISTS idx_chat_receiver ON chat_messages(receiver_id);");
+            stmt.execute("CREATE INDEX IF NOT EXISTS idx_chat_sender ON chat_messages(sender_id);");
+
+            // 6. Chèn dữ liệu mẫu nếu bảng Users trống
             var rsUsers = stmt.executeQuery("SELECT COUNT(*) FROM users;");
             if (rsUsers.next() && rsUsers.getInt(1) == 0) {
                 stmt.execute("""
@@ -102,7 +121,7 @@ public class DatabaseManager {
                 stmt.executeUpdate("UPDATE users SET email = 'kha.hr@company.com' WHERE username = 'nhanvien3' AND (email IS NULL OR email = '')");
             }
 
-            // 5. Chèn dữ liệu mẫu nếu bảng Rooms trống
+            // 7. Chèn dữ liệu mẫu nếu bảng Rooms trống
             var rsRooms = stmt.executeQuery("SELECT COUNT(*) FROM rooms;");
             if (rsRooms.next() && rsRooms.getInt(1) == 0) {
                 stmt.execute("""
@@ -112,6 +131,16 @@ public class DatabaseManager {
                     ('Phòng Brainstorming C1', 8, 'Tầng 1 - Tòa C', 'Bảng kính, Màn hình di động, Bút cảm ứng', 'AVAILABLE'),
                     ('Phòng Đào Tạo & Workshop D3', 50, 'Tầng 3 - Tòa D', '2 Máy chiếu, Hệ thống âm thanh, Bục phát biểu', 'AVAILABLE'),
                     ('Phòng Khách VIP E1', 6, 'Tầng Trệt - Tòa A', 'Sofa cao cấp, TV họp nhanh, Tủ đồ uống', 'AVAILABLE');
+                """);
+            }
+
+            // 8. Chèn tin nhắn chào mừng mẫu nếu bảng chat_messages trống
+            var rsChat = stmt.executeQuery("SELECT COUNT(*) FROM chat_messages;");
+            if (rsChat.next() && rsChat.getInt(1) == 0) {
+                stmt.execute("""
+                    INSERT INTO chat_messages (sender_id, receiver_id, sender_name, sender_dept, content, type, is_read) VALUES
+                    (1, 0, 'Quản Trị Viên (Admin)', 'Ban Giám Đốc', 'Chào mừng toàn thể anh chị em nhân viên đến với Kênh thảo luận nội bộ công ty!', 'PUBLIC', 1),
+                    (2, 0, 'An', 'Phòng Kỹ Thuật IT', 'Chào mọi người! Phòng kỹ thuật IT sẵn sàng hỗ trợ kỹ thuật phòng họp.', 'PUBLIC', 1);
                 """);
             }
 

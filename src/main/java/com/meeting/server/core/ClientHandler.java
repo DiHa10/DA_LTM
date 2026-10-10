@@ -2,6 +2,7 @@ package com.meeting.server.core;
 
 import com.google.gson.reflect.TypeToken;
 import com.meeting.common.model.Booking;
+import com.meeting.common.model.ChatMessage;
 import com.meeting.common.model.Room;
 import com.meeting.common.model.User;
 import com.meeting.common.protocol.ActionType;
@@ -334,22 +335,101 @@ public class ClientHandler implements Runnable {
                 }
 
                 case SEND_CHAT_MESSAGE -> {
-                    String msgText = request.getData();
-                    if (msgText == null || msgText.trim().isEmpty()) {
+                    ChatMessage msg;
+                    try {
+                        msg = JsonUtil.fromJson(request.getData(), ChatMessage.class);
+                    } catch (Exception e) {
+                        msg = null;
+                    }
+                    if (msg == null || msg.getContent() == null) {
+                        // Tương thích ngược nếu client gửi chuỗi text thô
+                        msg = new ChatMessage();
+                        msg.setContent(request.getData());
+                        msg.setType("PUBLIC");
+                    }
+                    if (msg.getContent() == null || msg.getContent().trim().isEmpty()) {
                         return Response.error("Nội dung tin nhắn không được để trống!");
                     }
+
+                    int senderId = currentUser != null ? currentUser.getId() : 0;
                     String senderName = currentUser != null ? currentUser.getFullName() : "Khách";
                     String dept = currentUser != null ? currentUser.getDepartment() : "Chung";
-                    String time = java.time.LocalTime.now().format(java.time.format.DateTimeFormatter.ofPattern("HH:mm:ss"));
+                    String time = java.time.LocalTime.now().format(java.time.format.DateTimeFormatter.ofPattern("HH:mm:ss"))
+                            + " " + java.time.LocalDate.now().format(java.time.format.DateTimeFormatter.ofPattern("dd/MM"));
 
-                    com.meeting.common.model.ChatMessage chat = new com.meeting.common.model.ChatMessage(
-                            senderName, dept, msgText.trim(), time
-                    );
-                    serverManager.log(String.format("[CHAT NỘI BỘ TCP] %s (%s): %s", senderName, dept, msgText.trim()));
+                    msg.setSenderId(senderId);
+                    msg.setSenderName(senderName);
+                    msg.setDepartment(dept);
+                    msg.setTimestamp(time);
 
-                    // Broadcast tin nhắn tới tất cả client kết nối
-                    serverManager.broadcast(new Response(Response.SUCCESS, "Tin nhắn mới", ActionType.CHAT_BROADCAST, JsonUtil.toJson(chat)));
-                    return null;
+                    if (msg.isPrivate()) {
+                        // 1. CHAT RIÊNG TƯ 1-1 BẢO MẬT (Chỉ người nhận và người gửi thấy)
+                        if (msg.getReceiverId() <= 0) {
+                            return Response.error("Vui lòng chọn người nhận cho tin nhắn riêng!");
+                        }
+                        if (msg.getReceiverId() == senderId) {
+                            return Response.error("Bạn không thể gửi tin nhắn riêng cho chính mình!");
+                        }
+
+                        User receiver = bookingService.getUserById(msg.getReceiverId());
+                        if (receiver != null) {
+                            msg.setReceiverName(receiver.getFullName());
+                        }
+
+                        // Lưu vào CSDL SQLite
+                        bookingService.saveChatMessage(msg);
+                        serverManager.log(String.format("[CHAT RIÊNG TCP BẢO MẬT] Từ %s (ID=%d) -> %s (ID=%d): %s",
+                                senderName, senderId, msg.getReceiverName() != null ? msg.getReceiverName() : ("ID=" + msg.getReceiverId()),
+                                msg.getReceiverId(), msg.getContent()));
+
+                        // Gửi đích danh tới người nhận (BẢO MẬT, hoàn toàn không broadcast tới client khác)
+                        Response privatePush = new Response(Response.SUCCESS, "Tin nhắn riêng mới", ActionType.CHAT_PRIVATE_RECEIVE, JsonUtil.toJson(msg));
+                        boolean delivered = serverManager.sendToUser(msg.getReceiverId(), privatePush);
+                        if (delivered) {
+                            serverManager.log("[CHAT RIÊNG TCP] Đã đẩy tin nhắn tới thiết bị của User ID=" + msg.getReceiverId());
+                        }
+
+                        // Trả về cho người gửi để thêm vào giao diện chat của người gửi
+                        return Response.success("Đã gửi tin nhắn riêng", ActionType.SEND_CHAT_MESSAGE, JsonUtil.toJson(msg));
+                    } else {
+                        // 2. CHAT NỘI BỘ TOÀN CÔNG TY (Ai cũng thấy và nhắn được)
+                        msg.setType("PUBLIC");
+                        msg.setReceiverId(0);
+
+                        // Lưu vào CSDL SQLite
+                        bookingService.saveChatMessage(msg);
+                        serverManager.log(String.format("[CHAT NỘI BỘ TCP] %s (%s): %s", senderName, dept, msg.getContent()));
+
+                        // Broadcast tin nhắn tới tất cả client đang kết nối
+                        serverManager.broadcast(new Response(Response.SUCCESS, "Tin nhắn nội bộ mới", ActionType.CHAT_BROADCAST, JsonUtil.toJson(msg)));
+                        return Response.success("Đã gửi tin nhắn nội bộ", ActionType.SEND_CHAT_MESSAGE, JsonUtil.toJson(msg));
+                    }
+                }
+
+                case GET_CHAT_HISTORY -> {
+                    Map<String, Object> map = JsonUtil.fromJson(request.getData(), new TypeToken<Map<String, Object>>() {}.getType());
+                    String type = map != null ? (String) map.get("type") : "PUBLIC";
+                    if ("PRIVATE".equalsIgnoreCase(type)) {
+                        int targetUserId = map != null && map.get("targetUserId") != null ? ((Number) map.get("targetUserId")).intValue() : 0;
+                        int myId = currentUser != null ? currentUser.getId() : 0;
+                        List<ChatMessage> history = bookingService.getPrivateChatMessages(myId, targetUserId, 80);
+                        return Response.success("Lấy lịch sử chat riêng thành công", ActionType.GET_CHAT_HISTORY, JsonUtil.toJson(history));
+                    } else {
+                        List<ChatMessage> history = bookingService.getPublicChatMessages(60);
+                        return Response.success("Lấy lịch sử chat nội bộ thành công", ActionType.GET_CHAT_HISTORY, JsonUtil.toJson(history));
+                    }
+                }
+
+                case GET_ONLINE_USERS -> {
+                    List<Integer> onlineIds = serverManager.getOnlineUserIds();
+                    return Response.success("Danh sách người dùng Online", ActionType.GET_ONLINE_USERS, JsonUtil.toJson(onlineIds));
+                }
+
+                case MARK_CHAT_READ -> {
+                    int senderId = Integer.parseInt(request.getData());
+                    int myId = currentUser != null ? currentUser.getId() : 0;
+                    bookingService.markChatAsRead(senderId, myId);
+                    return Response.success("Đã đánh dấu đã đọc");
                 }
 
                 default -> {

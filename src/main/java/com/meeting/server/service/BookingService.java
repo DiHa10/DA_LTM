@@ -18,9 +18,38 @@ public class BookingService {
     private final RoomDao roomDao = new RoomDao();
     private final BookingDao bookingDao = new BookingDao();
     private final NotificationDao notificationDao = new NotificationDao();
+    private final com.meeting.server.dao.ChatMessageDao chatMessageDao = new com.meeting.server.dao.ChatMessageDao();
 
     // Khóa đồng bộ dùng cho việc tranh chấp tài nguyên đặt phòng
     private final Object bookingLock = new Object();
+
+    public com.meeting.server.dao.ChatMessageDao getChatMessageDao() {
+        return chatMessageDao;
+    }
+
+    public boolean saveChatMessage(com.meeting.common.model.ChatMessage msg) {
+        return chatMessageDao.insertMessage(msg);
+    }
+
+    public List<com.meeting.common.model.ChatMessage> getPublicChatMessages(int limit) {
+        return chatMessageDao.getPublicMessages(limit);
+    }
+
+    public List<com.meeting.common.model.ChatMessage> getPrivateChatMessages(int u1, int u2, int limit) {
+        return chatMessageDao.getPrivateMessages(u1, u2, limit);
+    }
+
+    public boolean markChatAsRead(int senderId, int receiverId) {
+        return chatMessageDao.markPrivateAsRead(senderId, receiverId);
+    }
+
+    public java.util.Map<Integer, Integer> getUnreadChatCounts(int receiverId) {
+        return chatMessageDao.getUnreadCountsBySender(receiverId);
+    }
+
+    public int getTotalUnreadChatCount(int receiverId) {
+        return chatMessageDao.getTotalUnreadCount(receiverId);
+    }
 
     public NotificationDao getNotificationDao() {
         return notificationDao;

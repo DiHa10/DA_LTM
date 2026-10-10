@@ -34,9 +34,14 @@ public enum ActionType {
     // Tra cứu phòng trống
     FIND_AVAILABLE_ROOMS,       // Lọc danh sách phòng trống theo khung giờ
 
-    // Kênh chat nhanh nội bộ qua TCP
+    // Kênh chat nhanh nội bộ & Chat riêng bảo mật qua TCP Socket
     SEND_CHAT_MESSAGE,
     CHAT_BROADCAST,
+    CHAT_PRIVATE_RECEIVE,    // Server đẩy tin nhắn riêng bảo mật tới người nhận
+    GET_CHAT_HISTORY,        // Lấy lịch sử tin nhắn từ CSDL SQLite
+    GET_ONLINE_USERS,        // Lấy danh sách ID người dùng đang trực tuyến
+    USER_STATUS_UPDATE,      // Broadcast trạng thái Online/Offline theo thời gian thực
+    MARK_CHAT_READ,          // Đánh dấu đã đọc tin nhắn riêng
 
     // Thông báo từ Server đẩy xuống Client (TCP Push)
     BROADCAST_UPDATE,       // Cập nhật dữ liệu thời gian thực

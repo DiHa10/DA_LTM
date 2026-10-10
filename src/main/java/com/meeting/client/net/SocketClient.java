@@ -59,7 +59,9 @@ public class SocketClient {
                     if (response.getAction() == ActionType.BROADCAST_UPDATE 
                             || response.getAction() == ActionType.REMINDER_NOTIFICATION
                             || response.getAction() == ActionType.INVITATION_NOTIFICATION
-                            || response.getAction() == ActionType.CHAT_BROADCAST) {
+                            || response.getAction() == ActionType.CHAT_BROADCAST
+                            || response.getAction() == ActionType.CHAT_PRIVATE_RECEIVE
+                            || response.getAction() == ActionType.USER_STATUS_UPDATE) {
                         if (broadcastListener != null) {
                             broadcastListener.accept(response);
                         }
