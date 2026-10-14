@@ -4,6 +4,8 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 
 public class DatabaseManager {
     private static final String DB_URL = "jdbc:sqlite:meeting_room.db";
@@ -142,6 +144,42 @@ public class DatabaseManager {
                     (1, 0, 'Quản Trị Viên (Admin)', 'Ban Giám Đốc', 'Chào mừng toàn thể anh chị em nhân viên đến với Kênh thảo luận nội bộ công ty!', 'PUBLIC', 1),
                     (2, 0, 'An', 'Phòng Kỹ Thuật IT', 'Chào mọi người! Phòng kỹ thuật IT sẵn sàng hỗ trợ kỹ thuật phòng họp.', 'PUBLIC', 1);
                 """);
+            }
+
+            // 9. Chèn dữ liệu mẫu lịch đặt phòng nếu bảng Bookings trống
+            var rsBookings = stmt.executeQuery("SELECT COUNT(*) FROM bookings;");
+            if (rsBookings.next() && rsBookings.getInt(1) == 0) {
+                String today = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
+                String tomorrow = LocalDate.now().plusDays(1).format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
+                String dayAfter = LocalDate.now().plusDays(2).format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
+
+                // Lịch họp hôm nay
+                stmt.execute(String.format("""
+                    INSERT INTO bookings (room_id, user_id, booking_date, start_time, end_time, purpose, invited_users, status) VALUES
+                    (1, 2, '%s', '08:00', '09:30', 'Sprint Planning - Phân công task tuần mới', '3,4', 'CONFIRMED'),
+                    (2, 1, '%s', '09:00', '11:00', 'Họp Ban Giám Đốc - Đánh giá KPI Q3/2026', NULL, 'CONFIRMED'),
+                    (3, 3, '%s', '10:00', '11:30', 'Brainstorm chiến dịch Marketing cuối năm', '2', 'CONFIRMED'),
+                    (4, 4, '%s', '13:30', '15:00', 'Workshop đào tạo nhân sự mới - Quy trình onboarding', '2,3', 'CONFIRMED'),
+                    (1, 3, '%s', '14:00', '15:30', 'Review thiết kế UI/UX website công ty', '2', 'CONFIRMED'),
+                    (5, 2, '%s', '16:00', '17:00', 'Họp nhanh với đối tác - Demo sản phẩm', NULL, 'CONFIRMED');
+                """, today, today, today, today, today, today));
+
+                // Lịch họp ngày mai
+                stmt.execute(String.format("""
+                    INSERT INTO bookings (room_id, user_id, booking_date, start_time, end_time, purpose, invited_users, status) VALUES
+                    (2, 2, '%s', '08:30', '10:00', 'Họp kỹ thuật - Triển khai hệ thống mới', '3,4', 'CONFIRMED'),
+                    (1, 4, '%s', '09:00', '10:30', 'Phỏng vấn ứng viên Senior Developer', NULL, 'CONFIRMED'),
+                    (3, 3, '%s', '14:00', '15:30', 'Lên kế hoạch quảng cáo Facebook Ads', '2', 'CONFIRMED');
+                """, tomorrow, tomorrow, tomorrow));
+
+                // Lịch họp ngày kia
+                stmt.execute(String.format("""
+                    INSERT INTO bookings (room_id, user_id, booking_date, start_time, end_time, purpose, invited_users, status) VALUES
+                    (4, 1, '%s', '09:00', '11:00', 'Hội nghị toàn công ty - Tổng kết tháng 10', '2,3,4', 'CONFIRMED'),
+                    (5, 2, '%s', '14:00', '15:00', 'Tiếp khách VIP - Đối tác Nhật Bản', NULL, 'CONFIRMED');
+                """, dayAfter, dayAfter));
+
+                System.out.println("[DatabaseManager] Đã chèn dữ liệu mẫu lịch đặt phòng (11 cuộc họp).");
             }
 
             System.out.println("[DatabaseManager] Khởi tạo CSDL SQLite thành công (meeting_room.db)");
