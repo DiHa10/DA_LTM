@@ -168,9 +168,18 @@ public class DatabaseManager {
                 stmt.execute(String.format("""
                     INSERT INTO bookings (room_id, user_id, booking_date, start_time, end_time, purpose, invited_users, status) VALUES
                     (2, 2, '%s', '08:30', '10:00', 'Họp kỹ thuật - Triển khai hệ thống mới', '3,4', 'CONFIRMED'),
+                    (4, 2, '%s', '08:30', '11:30', 'Khóa đào tạo An toàn thông tin & Bảo mật nội bộ', '1,3,4', 'CONFIRMED'),
                     (1, 4, '%s', '09:00', '10:30', 'Phỏng vấn ứng viên Senior Developer', NULL, 'CONFIRMED'),
-                    (3, 3, '%s', '14:00', '15:30', 'Lên kế hoạch quảng cáo Facebook Ads', '2', 'CONFIRMED');
-                """, tomorrow, tomorrow, tomorrow));
+                    (3, 3, '%s', '09:00', '10:30', 'Lên ý tưởng chiến dịch truyền thông tháng 11', NULL, 'CONFIRMED'),
+                    (5, 1, '%s', '10:00', '11:30', 'Tiếp đón đối tác kiểm toán độc lập', NULL, 'CONFIRMED'),
+                    (2, 1, '%s', '10:30', '12:00', 'Họp thảo luận hợp tác chiến lược đối tác Q4', '2,3', 'CONFIRMED'),
+                    (2, 1, '%s', '13:30', '15:30', 'Báo cáo tài chính & Kế hoạch ngân sách quý tới', NULL, 'CONFIRMED'),
+                    (1, 2, '%s', '14:00', '15:30', 'Demo tính năng ứng dụng di động v2.0', '3,4', 'CONFIRMED'),
+                    (3, 3, '%s', '14:00', '15:30', 'Lên kế hoạch quảng cáo Facebook Ads', '2', 'CONFIRMED'),
+                    (4, 4, '%s', '14:00', '16:30', 'Workshop nâng cao kỹ năng đàm phán & thuyết trình', '2,3', 'CONFIRMED'),
+                    (5, 1, '%s', '15:00', '16:30', 'Gặp gỡ và trao đổi với đại diện Quỹ đầu tư', '2', 'CONFIRMED'),
+                    (1, 2, '%s', '16:00', '17:30', 'Họp giao ban nội bộ phòng Kỹ thuật IT', NULL, 'CONFIRMED');
+                """, tomorrow, tomorrow, tomorrow, tomorrow, tomorrow, tomorrow, tomorrow, tomorrow, tomorrow, tomorrow, tomorrow, tomorrow));
 
                 // Lịch họp ngày kia
                 stmt.execute(String.format("""
@@ -179,7 +188,7 @@ public class DatabaseManager {
                     (5, 2, '%s', '14:00', '15:00', 'Tiếp khách VIP - Đối tác Nhật Bản', NULL, 'CONFIRMED');
                 """, dayAfter, dayAfter));
 
-                System.out.println("[DatabaseManager] Đã chèn dữ liệu mẫu lịch đặt phòng (11 cuộc họp).");
+                System.out.println("[DatabaseManager] Đã chèn dữ liệu mẫu lịch đặt phòng (20 cuộc họp).");
             }
 
             System.out.println("[DatabaseManager] Khởi tạo CSDL SQLite thành công (meeting_room.db)");
