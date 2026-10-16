@@ -143,6 +143,14 @@ public class ClientHandler implements Runnable {
                     return Response.success("Lấy lịch họp thành công", ActionType.GET_BOOKINGS_BY_DATE, JsonUtil.toJson(bookings));
                 }
 
+                case GET_BOOKINGS_BY_DATE_RANGE -> {
+                    Map<String, String> range = JsonUtil.fromJson(request.getData(), new TypeToken<Map<String, String>>() {}.getType());
+                    String fromDate = range != null ? range.get("fromDate") : "";
+                    String toDate = range != null ? range.get("toDate") : "";
+                    List<Booking> bookings = bookingService.getBookingsByDateRange(fromDate, toDate);
+                    return Response.success("Lấy lịch họp theo khoảng ngày thành công", ActionType.GET_BOOKINGS_BY_DATE_RANGE, JsonUtil.toJson(bookings));
+                }
+
                 case GET_BOOKINGS_BY_USER -> {
                     int userId = request.getUserId() > 0 ? request.getUserId() : (currentUser != null ? currentUser.getId() : 0);
                     List<Booking> bookings = bookingService.getBookingsByUser(userId);
@@ -313,6 +321,41 @@ public class ClientHandler implements Runnable {
                     return res;
                 }
 
+                case UPDATE_BOOKING -> {
+                    Booking booking = JsonUtil.fromJson(request.getData(), Booking.class);
+                    boolean isAdmin = currentUser != null && currentUser.isAdmin();
+                    int userId = currentUser != null ? currentUser.getId() : (request.getUserId() > 0 ? request.getUserId() : 0);
+                    Response res = bookingService.updateBooking(booking, userId, isAdmin);
+                    if (res.isSuccess()) {
+                        serverManager.log("[CẬP NHẬT LỊCH HỌP] Lịch ID: " + booking.getId() + " bởi User ID: " + userId);
+                        serverManager.broadcast(new Response(Response.SUCCESS, "Có cuộc họp vừa được cập nhật lại giờ/phòng!", ActionType.BROADCAST_UPDATE, "SCHEDULE_UPDATED"));
+                    } else if (res.isConflict()) {
+                        serverManager.log("[CHẶN SỬA TRÙNG LỊCH] " + res.getMessage());
+                    }
+                    return res;
+                }
+
+                case DELETE_BOOKING -> {
+                    int bookingId = Integer.parseInt(request.getData());
+                    boolean isAdmin = currentUser != null && currentUser.isAdmin();
+                    int userId = currentUser != null ? currentUser.getId() : (request.getUserId() > 0 ? request.getUserId() : 0);
+                    Response res = bookingService.deleteBooking(bookingId, userId, isAdmin);
+                    if (res.isSuccess()) {
+                        serverManager.log("[XÓA LỊCH HỌP] Lịch ID: " + bookingId + " đã bị xóa khỏi CSDL!");
+                        serverManager.broadcast(new Response(Response.SUCCESS, "Một cuộc họp đã bị xóa!", ActionType.BROADCAST_UPDATE, "SCHEDULE_UPDATED"));
+                    }
+                    return res;
+                }
+
+                case GET_DEPARTMENT_STATS -> {
+                    String yearMonth = request.getData();
+                    if (yearMonth == null || yearMonth.trim().isEmpty()) {
+                        yearMonth = java.time.LocalDate.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM"));
+                    }
+                    Map<String, Integer> stats = bookingService.getDepartmentStats(yearMonth);
+                    return Response.success("Lấy thống kê phòng ban thành công", ActionType.GET_DEPARTMENT_STATS, JsonUtil.toJson(stats));
+                }
+
                 case GET_NOTIFICATIONS -> {
                     int userId = (currentUser != null) ? currentUser.getId() : request.getUserId();
                     List<com.meeting.common.model.Notification> notifs = bookingService.getNotificationDao().getNotificationsByUser(userId);
@@ -409,13 +452,16 @@ public class ClientHandler implements Runnable {
                 case GET_CHAT_HISTORY -> {
                     Map<String, Object> map = JsonUtil.fromJson(request.getData(), new TypeToken<Map<String, Object>>() {}.getType());
                     String type = map != null ? (String) map.get("type") : "PUBLIC";
+                    int beforeId = (map != null && map.get("beforeId") != null) ? ((Number) map.get("beforeId")).intValue() : 0;
+                    int limit = (map != null && map.get("limit") != null) ? ((Number) map.get("limit")).intValue() : 0;
+
                     if ("PRIVATE".equalsIgnoreCase(type)) {
                         int targetUserId = map != null && map.get("targetUserId") != null ? ((Number) map.get("targetUserId")).intValue() : 0;
                         int myId = currentUser != null ? currentUser.getId() : 0;
-                        List<ChatMessage> history = bookingService.getPrivateChatMessages(myId, targetUserId, 80);
+                        List<ChatMessage> history = bookingService.getPrivateChatMessages(myId, targetUserId, limit > 0 ? limit : 50, beforeId);
                         return Response.success("Lấy lịch sử chat riêng thành công", ActionType.GET_CHAT_HISTORY, JsonUtil.toJson(history));
                     } else {
-                        List<ChatMessage> history = bookingService.getPublicChatMessages(60);
+                        List<ChatMessage> history = bookingService.getPublicChatMessages(limit > 0 ? limit : 50, beforeId);
                         return Response.success("Lấy lịch sử chat nội bộ thành công", ActionType.GET_CHAT_HISTORY, JsonUtil.toJson(history));
                     }
                 }

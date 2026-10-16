@@ -21,11 +21,15 @@ public enum ActionType {
 
     // Đặt phòng & Lịch họp
     GET_BOOKINGS_BY_DATE,
+    GET_BOOKINGS_BY_DATE_RANGE, // Lọc lịch họp theo khoảng ngày (từ ngày - đến ngày / tuần / tháng)
     GET_BOOKINGS_BY_USER,
     BOOK_ROOM,
     CANCEL_BOOKING,
-    RELEASE_ROOM_EARLY, // Trả phòng sớm / Giải phóng phòng
-    EXTEND_BOOKING,     // Gia hạn thêm giờ họp với kiểm tra tranh chấp phòng
+    UPDATE_BOOKING,             // Chỉnh sửa lịch họp (giờ, phòng, mục đích) kèm chống trùng lịch
+    DELETE_BOOKING,             // Xóa hẳn cuộc họp khỏi CSDL
+    RELEASE_ROOM_EARLY,         // Trả phòng sớm / Giải phóng phòng
+    EXTEND_BOOKING,             // Gia hạn thêm giờ họp với kiểm tra tranh chấp phòng
+    GET_DEPARTMENT_STATS,       // Thống kê số lượng cuộc họp theo phòng ban theo tháng
 
     // Thông báo & Lịch sử
     GET_NOTIFICATIONS,          // Tải danh sách thông báo đã lưu trong CSDL

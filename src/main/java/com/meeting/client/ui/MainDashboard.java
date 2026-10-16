@@ -27,8 +27,10 @@ import java.awt.*;
 import java.awt.geom.RoundRectangle2D;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
+import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
+import java.time.temporal.TemporalAdjusters;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -61,10 +63,14 @@ public class MainDashboard extends JFrame {
 
     // UI Tab 1: Schedule
     private JTextField txtScheduleDate;
+    private JTextField txtFromDate;
+    private JTextField txtToDate;
     private JTable tblBookings;
     private DefaultTableModel bookingTableModel;
     private JTable tblRooms;
     private DefaultTableModel roomTableModel;
+    private DefaultTableModel deptStatsTableModel;
+    private JComboBox<String> cboStatsMonth;
 
     // UI Tab 2: My Bookings
     private JTable tblMyBookings;
@@ -88,6 +94,9 @@ public class MainDashboard extends JFrame {
     private JScrollPane scrollChat;
     private JTextField txtChatInput;
     private JButton btnSendChat;
+    private final List<ChatMessage> currentChatMessages = new ArrayList<>();
+    private JButton btnLoadMoreChat;
+    private boolean hasMoreOlderMessages = true;
     private boolean isPublicChatSelected = true;
     private User selectedChatUser = null;
     private final List<User> allColleagues = new ArrayList<>();
@@ -509,20 +518,25 @@ public class MainDashboard extends JFrame {
         lblPageTitle.setFont(new Font("Segoe UI", Font.BOLD, 22));
         lblPageTitle.setForeground(TEXT_PRIMARY);
 
-        // Filter Card giấy mộc
-        JPanel filterCard = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 0));
+        // Filter Card giấy mộc với 2 dòng bộ lọc hiện đại
+        JPanel filterCard = new JPanel();
+        filterCard.setLayout(new BoxLayout(filterCard, BoxLayout.Y_AXIS));
         filterCard.setBackground(CARD_BG);
         filterCard.setBorder(BorderFactory.createCompoundBorder(
                 BorderFactory.createLineBorder(BORDER_WARM, 1),
                 new EmptyBorder(10, 14, 10, 14)
         ));
 
+        // Dòng 1: Lọc theo 1 ngày + Tuần này + Tháng này + Nút Đặt Phòng
+        JPanel row1 = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 4));
+        row1.setOpaque(false);
+
         JLabel lblDateFilter = new JLabel("Xem lịch ngày:");
         lblDateFilter.setForeground(TEXT_SECONDARY);
         lblDateFilter.setFont(new Font("Segoe UI", Font.PLAIN, 13));
-        filterCard.add(lblDateFilter);
+        row1.add(lblDateFilter);
 
-        txtScheduleDate = new JTextField(selectedDate, 10);
+        txtScheduleDate = new JTextField(selectedDate, 9);
         txtScheduleDate.setBackground(INPUT_BG);
         txtScheduleDate.setForeground(TEXT_PRIMARY);
         txtScheduleDate.setCaretColor(ACCENT_TERRA);
@@ -532,12 +546,11 @@ public class MainDashboard extends JFrame {
                 BorderFactory.createLineBorder(BORDER_WARM, 1),
                 new EmptyBorder(5, 8, 5, 8)
         ));
-        filterCard.add(txtScheduleDate);
+        row1.add(txtScheduleDate);
 
-        // Nút mở Popup Lịch phong cách Windows Calendar
         JButton btnCalendar = new JButton();
         btnCalendar.setIcon(AppIcon.calendar(15, ACCENT_TERRA));
-        btnCalendar.setToolTipText("Mở lịch chọn ngày trực quan (Windows Calendar)");
+        btnCalendar.setToolTipText("Mở lịch chọn ngày trực quan");
         btnCalendar.setBackground(INPUT_BG);
         btnCalendar.setBorder(BorderFactory.createCompoundBorder(
                 BorderFactory.createLineBorder(BORDER_WARM, 1),
@@ -545,39 +558,15 @@ public class MainDashboard extends JFrame {
         ));
         btnCalendar.setCursor(new Cursor(Cursor.HAND_CURSOR));
         btnCalendar.setFocusPainted(false);
-        filterCard.add(btnCalendar);
+        row1.add(btnCalendar);
 
-        // Gắn CalendarPickerPopup vào txtScheduleDate và btnCalendar: khi click ngày tự động tải lại bảng lịch
         CalendarPickerPopup.attach(txtScheduleDate, btnCalendar, chosenDate -> {
             loadBookingsByDate();
         });
 
-        filterCard.add(createFilterButton("Hôm nay", () -> {
-            txtScheduleDate.setText(DateUtil.todayUi());
-            loadBookingsByDate();
-        }));
-        filterCard.add(createFilterButton("Ngày mai", () -> {
-            txtScheduleDate.setText(DateUtil.formatUi(LocalDate.now().plusDays(1)));
-            loadBookingsByDate();
-        }));
-        filterCard.add(createFilterButton("Xem Lịch", this::loadBookingsByDate));
-
-        JButton btnChatHost = createFilterButton("Nhắn tin cho người đặt", () -> {
-            int row = tblBookings.getSelectedRow();
-            if (row < 0) {
-                JOptionPane.showMessageDialog(this, "Vui lòng chọn 1 lịch họp trong bảng phía dưới để nhắn tin cho người đặt phòng!", "Chọn lịch họp", JOptionPane.INFORMATION_MESSAGE);
-                return;
-            }
-            String roomName = (String) bookingTableModel.getValueAt(row, 1);
-            String timeSlot = (String) bookingTableModel.getValueAt(row, 2);
-            String hostName = (String) bookingTableModel.getValueAt(row, 3);
-
-            openChatWithColleague(hostName, "[Gửi @" + hostName + " - Lịch " + roomName + " " + timeSlot + "]: ");
-        });
-        btnChatHost.setIcon(AppIcon.chat(13, ACCENT_TERRA));
-        btnChatHost.setIconTextGap(6);
-        btnChatHost.setToolTipText("Chọn 1 lịch họp rồi bấm nút này để nhắn tin trực tiếp cho người đặt phòng");
-        filterCard.add(btnChatHost);
+        row1.add(createFilterButton("Xem Lịch", this::loadBookingsByDate));
+        row1.add(createFilterButton("🗓️ Tuần này", this::filterThisWeek));
+        row1.add(createFilterButton("📆 Tháng này", this::filterThisMonth));
 
         // Nút đặt phòng Terracotta
         JButton btnBook = new JButton("+ Đặt Phòng Mới") {
@@ -602,8 +591,88 @@ public class MainDashboard extends JFrame {
         btnBook.setOpaque(false);
         btnBook.setCursor(new Cursor(Cursor.HAND_CURSOR));
         btnBook.addActionListener(e -> openBookingDialog());
-        filterCard.add(Box.createHorizontalStrut(10));
-        filterCard.add(btnBook);
+        row1.add(Box.createHorizontalStrut(10));
+        row1.add(btnBook);
+        filterCard.add(row1);
+
+        // Dòng 2: Lọc khoảng ngày từ ngày - đến ngày + Nhắn tin người đặt
+        JPanel row2 = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 4));
+        row2.setOpaque(false);
+
+        JLabel lblRange = new JLabel("Lọc khoảng ngày: Từ");
+        lblRange.setForeground(TEXT_SECONDARY);
+        lblRange.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        row2.add(lblRange);
+
+        txtFromDate = new JTextField(DateUtil.todayUi(), 9);
+        txtFromDate.setBackground(INPUT_BG);
+        txtFromDate.setForeground(TEXT_PRIMARY);
+        txtFromDate.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        txtFromDate.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(BORDER_WARM, 1),
+                new EmptyBorder(4, 6, 4, 6)
+        ));
+        row2.add(txtFromDate);
+
+        JButton btnFromCalendar = new JButton();
+        btnFromCalendar.setIcon(AppIcon.calendar(14, ACCENT_TERRA));
+        btnFromCalendar.setBackground(INPUT_BG);
+        btnFromCalendar.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(BORDER_WARM, 1),
+                new EmptyBorder(4, 6, 4, 6)
+        ));
+        btnFromCalendar.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        btnFromCalendar.setFocusPainted(false);
+        row2.add(btnFromCalendar);
+        CalendarPickerPopup.attach(txtFromDate, btnFromCalendar, null);
+
+        JLabel lblTo = new JLabel("Đến");
+        lblTo.setForeground(TEXT_SECONDARY);
+        lblTo.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        row2.add(lblTo);
+
+        txtToDate = new JTextField(DateUtil.formatUi(LocalDate.now().plusDays(7)), 9);
+        txtToDate.setBackground(INPUT_BG);
+        txtToDate.setForeground(TEXT_PRIMARY);
+        txtToDate.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        txtToDate.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(BORDER_WARM, 1),
+                new EmptyBorder(4, 6, 4, 6)
+        ));
+        row2.add(txtToDate);
+
+        JButton btnToCalendar = new JButton();
+        btnToCalendar.setIcon(AppIcon.calendar(14, ACCENT_TERRA));
+        btnToCalendar.setBackground(INPUT_BG);
+        btnToCalendar.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(BORDER_WARM, 1),
+                new EmptyBorder(4, 6, 4, 6)
+        ));
+        btnToCalendar.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        btnToCalendar.setFocusPainted(false);
+        row2.add(btnToCalendar);
+        CalendarPickerPopup.attach(txtToDate, btnToCalendar, null);
+
+        row2.add(createFilterButton("🔍 Lọc khoảng", this::filterDateRange));
+
+        JButton btnChatHost = createFilterButton("Nhắn tin cho người đặt", () -> {
+            int row = tblBookings.getSelectedRow();
+            if (row < 0) {
+                JOptionPane.showMessageDialog(this, "Vui lòng chọn 1 lịch họp trong bảng phía dưới để nhắn tin cho người đặt phòng!", "Chọn lịch họp", JOptionPane.INFORMATION_MESSAGE);
+                return;
+            }
+            String roomName = (String) bookingTableModel.getValueAt(row, 2);
+            String timeSlot = (String) bookingTableModel.getValueAt(row, 3);
+            String hostName = (String) bookingTableModel.getValueAt(row, 4);
+
+            openChatWithColleague(hostName, "[Gửi @" + hostName + " - Lịch " + roomName + " " + timeSlot + "]: ");
+        });
+        btnChatHost.setIcon(AppIcon.chat(13, ACCENT_TERRA));
+        btnChatHost.setIconTextGap(6);
+        btnChatHost.setToolTipText("Chọn 1 lịch họp rồi bấm nút này để nhắn tin trực tiếp cho người đặt phòng");
+        row2.add(btnChatHost);
+
+        filterCard.add(row2);
 
         JPanel topArea = new JPanel(new BorderLayout(0, 10));
         topArea.setOpaque(false);
@@ -613,18 +682,18 @@ public class MainDashboard extends JFrame {
 
         // Split Tables
         JSplitPane splitPane = new JSplitPane(JSplitPane.VERTICAL_SPLIT);
-        splitPane.setResizeWeight(0.6);
+        splitPane.setResizeWeight(0.55);
         splitPane.setBackground(BG_WARM);
         splitPane.setBorder(null);
         splitPane.setDividerSize(6);
 
-        String[] bookCols = {"STT", "Phòng họp", "Khung giờ", "Người đặt", "Phòng ban", "Mục đích", "Trạng thái"};
+        String[] bookCols = {"STT", "Ngày", "Phòng họp", "Khung giờ", "Người đặt", "Phòng ban", "Mục đích", "Trạng thái"};
         bookingTableModel = new DefaultTableModel(bookCols, 0) {
             @Override
             public boolean isCellEditable(int row, int col) { return false; }
         };
         tblBookings = createStyledTable(bookingTableModel);
-        JScrollPane scrollBookings = createStyledScrollPane(tblBookings, "Lịch họp đã chốt trong ngày");
+        JScrollPane scrollBookings = createStyledScrollPane(tblBookings, "Lịch họp công ty (Đã chốt)");
 
         String[] roomCols = {"ID", "Tên phòng", "Sức chứa", "Vị trí", "Trang thiết bị", "Trạng thái"};
         roomTableModel = new DefaultTableModel(roomCols, 0) {
@@ -634,8 +703,15 @@ public class MainDashboard extends JFrame {
         tblRooms = createStyledTable(roomTableModel);
         JScrollPane scrollRooms = createStyledScrollPane(tblRooms, "Danh mục các phòng họp công ty");
 
+        // Phía dưới: Chia đôi màn hình gồm Danh mục phòng họp (trái) và Thống kê họp phòng ban (phải)
+        JSplitPane bottomSplit = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, scrollRooms, createDepartmentStatsPanel());
+        bottomSplit.setResizeWeight(0.55);
+        bottomSplit.setBackground(BG_WARM);
+        bottomSplit.setBorder(null);
+        bottomSplit.setDividerSize(6);
+
         splitPane.setTopComponent(scrollBookings);
-        splitPane.setBottomComponent(scrollRooms);
+        splitPane.setBottomComponent(bottomSplit);
         panel.add(splitPane, BorderLayout.CENTER);
 
         return panel;
@@ -671,6 +747,20 @@ public class MainDashboard extends JFrame {
 
         toolBar.add(createFilterButton("Làm mới", this::loadMyBookings));
 
+        JButton btnEdit = new JButton("✏️ Sửa cuộc họp");
+        btnEdit.setToolTipText("Chỉnh sửa giờ, phòng hoặc mục đích cuộc họp (kèm chống trùng lịch)");
+        btnEdit.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        btnEdit.setBackground(new Color(254, 243, 235));
+        btnEdit.setForeground(ACCENT_TERRA);
+        btnEdit.setFocusPainted(false);
+        btnEdit.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(new Color(254, 215, 195), 1),
+                new EmptyBorder(6, 10, 6, 10)
+        ));
+        btnEdit.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        btnEdit.addActionListener(e -> doEditSelectedBooking());
+        toolBar.add(btnEdit);
+
         JButton btnCancel = new JButton("Hủy lịch");
         btnCancel.setToolTipText("Hủy bỏ lịch họp đã chọn");
         btnCancel.setFont(new Font("Segoe UI", Font.BOLD, 12));
@@ -684,6 +774,20 @@ public class MainDashboard extends JFrame {
         btnCancel.setCursor(new Cursor(Cursor.HAND_CURSOR));
         btnCancel.addActionListener(e -> doCancelSelectedBooking());
         toolBar.add(btnCancel);
+
+        JButton btnDelete = new JButton("🗑️ Xóa hẳn");
+        btnDelete.setToolTipText("Xóa hẳn cuộc họp khỏi cơ sở dữ liệu");
+        btnDelete.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        btnDelete.setBackground(new Color(254, 242, 242));
+        btnDelete.setForeground(DANGER);
+        btnDelete.setFocusPainted(false);
+        btnDelete.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(new Color(254, 202, 202), 1),
+                new EmptyBorder(6, 10, 6, 10)
+        ));
+        btnDelete.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        btnDelete.addActionListener(e -> doDeleteSelectedBooking());
+        toolBar.add(btnDelete);
 
         JButton btnEarlyRelease = new JButton("Trả phòng sớm");
         btnEarlyRelease.setToolTipText("Trả phòng sớm - Giải phóng phòng họp ngay lập tức");
@@ -1454,6 +1558,7 @@ public class MainDashboard extends JFrame {
         loadNotifications();
         loadColleagues();
         loadChatHistory();
+        loadDepartmentStats();
         if (currentUser.isAdmin()) {
             loadAdminUsers();
         }
@@ -1481,7 +1586,7 @@ public class MainDashboard extends JFrame {
     }
 
     private void loadBookingsByDate() {
-        String uiDate = txtScheduleDate.getText().trim();
+        String uiDate = txtScheduleDate != null ? txtScheduleDate.getText().trim() : "";
         if (uiDate.isEmpty()) return;
         String date = DateUtil.toDbDate(uiDate);
 
@@ -1490,23 +1595,83 @@ public class MainDashboard extends JFrame {
             Response res = client.sendRequest(req);
             if (res != null && res.isSuccess()) {
                 List<Booking> list = JsonUtil.fromJson(res.getData(), new TypeToken<List<Booking>>() {}.getType());
-                SwingUtilities.invokeLater(() -> {
-                    bookingTableModel.setRowCount(0);
-                    int stt = 1;
-                    for (Booking b : list) {
-                        bookingTableModel.addRow(new Object[]{
-                                stt++,
-                                b.getRoomName(),
-                                b.getTimeSlot(),
-                                b.getUserFullName(),
-                                b.getDepartment(),
-                                b.getPurpose(),
-                                b.getStatus()
-                        });
-                    }
-                });
+                SwingUtilities.invokeLater(() -> renderBookingsTable(list));
             }
         }).start();
+    }
+
+    private void loadBookingsByDateRange(String fromDate, String toDate) {
+        if (fromDate == null || toDate == null || fromDate.trim().isEmpty() || toDate.trim().isEmpty()) return;
+        new Thread(() -> {
+            Map<String, String> range = new HashMap<>();
+            range.put("fromDate", DateUtil.toDbDate(fromDate));
+            range.put("toDate", DateUtil.toDbDate(toDate));
+
+            Request req = new Request(ActionType.GET_BOOKINGS_BY_DATE_RANGE, currentUser.getId(), JsonUtil.toJson(range));
+            Response res = client.sendRequest(req);
+            if (res != null && res.isSuccess()) {
+                List<Booking> list = JsonUtil.fromJson(res.getData(), new TypeToken<List<Booking>>() {}.getType());
+                SwingUtilities.invokeLater(() -> renderBookingsTable(list));
+            }
+        }).start();
+    }
+
+    private void renderBookingsTable(List<Booking> list) {
+        if (bookingTableModel == null) return;
+        bookingTableModel.setRowCount(0);
+        if (list == null) return;
+        int stt = 1;
+        for (Booking b : list) {
+            bookingTableModel.addRow(new Object[]{
+                    stt++,
+                    DateUtil.toUiDate(b.getBookingDate()),
+                    b.getRoomName(),
+                    b.getTimeSlot(),
+                    b.getUserFullName(),
+                    b.getDepartment(),
+                    b.getPurpose(),
+                    b.getStatus()
+            });
+        }
+    }
+
+    private void filterThisWeek() {
+        LocalDate now = LocalDate.now();
+        LocalDate startOfWeek = now.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
+        LocalDate endOfWeek = now.with(TemporalAdjusters.nextOrSame(DayOfWeek.SUNDAY));
+        String fromStr = DateUtil.formatUi(startOfWeek);
+        String toStr = DateUtil.formatUi(endOfWeek);
+        if (txtFromDate != null) txtFromDate.setText(fromStr);
+        if (txtToDate != null) txtToDate.setText(toStr);
+        loadBookingsByDateRange(fromStr, toStr);
+    }
+
+    private void filterThisMonth() {
+        LocalDate now = LocalDate.now();
+        LocalDate startOfMonth = now.withDayOfMonth(1);
+        LocalDate endOfMonth = now.withDayOfMonth(now.lengthOfMonth());
+        String fromStr = DateUtil.formatUi(startOfMonth);
+        String toStr = DateUtil.formatUi(endOfMonth);
+        if (txtFromDate != null) txtFromDate.setText(fromStr);
+        if (txtToDate != null) txtToDate.setText(toStr);
+        loadBookingsByDateRange(fromStr, toStr);
+    }
+
+    private void filterDateRange() {
+        if (txtFromDate == null || txtToDate == null) return;
+        String from = txtFromDate.getText().trim();
+        String to = txtToDate.getText().trim();
+        if (from.isEmpty() || to.isEmpty()) {
+            JOptionPane.showMessageDialog(this, "Vui lòng nhập đầy đủ Từ ngày và Đến ngày!", "Thiếu ngày", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+        LocalDate dFrom = DateUtil.parseLocalDate(from);
+        LocalDate dTo = DateUtil.parseLocalDate(to);
+        if (dFrom.isAfter(dTo)) {
+            JOptionPane.showMessageDialog(this, "Từ ngày phải nhỏ hơn hoặc bằng Đến ngày!", "Khoảng ngày không hợp lệ", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+        loadBookingsByDateRange(from, to);
     }
 
     private void loadMyBookings() {
@@ -1681,6 +1846,182 @@ public class MainDashboard extends JFrame {
                 });
             }).start();
         }
+    }
+
+    private void doEditSelectedBooking() {
+        int row = tblMyBookings.getSelectedRow();
+        if (row < 0) {
+            JOptionPane.showMessageDialog(this, "Vui lòng chọn 1 lịch họp trong bảng để chỉnh sửa!", "Thông báo", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
+        Booking selectedBooking = (cachedMyBookings != null && row < cachedMyBookings.size()) ? cachedMyBookings.get(row) : null;
+        if (selectedBooking == null) return;
+
+        if (!currentUser.isAdmin() && selectedBooking.getUserId() != currentUser.getId()) {
+            JOptionPane.showMessageDialog(this, "Bạn chỉ là Khách mời. Chỉ Người chủ trì (Host) hoặc Quản trị viên mới có quyền chỉnh sửa cuộc họp!", "Không có quyền", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
+        if (!"CONFIRMED".equalsIgnoreCase(selectedBooking.getStatus())) {
+            JOptionPane.showMessageDialog(this, "Chỉ có thể chỉnh sửa cuộc họp đang có trạng thái CONFIRMED (Hiện tại: " + selectedBooking.getStatus() + ")!", "Thông báo", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
+        EditBookingDialog dlg = new EditBookingDialog(this, client, currentUser, cachedRooms, selectedBooking, () -> {
+            loadMyBookings();
+            loadBookingsByDate();
+            loadDepartmentStats();
+        });
+        dlg.setVisible(true);
+    }
+
+    private void doDeleteSelectedBooking() {
+        int row = tblMyBookings.getSelectedRow();
+        if (row < 0) {
+            JOptionPane.showMessageDialog(this, "Vui lòng chọn 1 lịch họp trong bảng để xóa!", "Thông báo", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
+        Booking selectedBooking = (cachedMyBookings != null && row < cachedMyBookings.size()) ? cachedMyBookings.get(row) : null;
+        if (selectedBooking == null) return;
+
+        if (!currentUser.isAdmin() && selectedBooking.getUserId() != currentUser.getId()) {
+            JOptionPane.showMessageDialog(this, "Bạn chỉ là Khách mời. Chỉ Người chủ trì (Host) hoặc Quản trị viên mới có quyền xóa cuộc họp!", "Không có quyền", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
+        int bookingId = selectedBooking.getId();
+        int confirm = JOptionPane.showConfirmDialog(this,
+                "CẢNH BÁO: Bạn có chắc chắn muốn XÓA HẲN cuộc họp (Mã: " + bookingId + ") khỏi cơ sở dữ liệu không?\n" +
+                "Thao tác này sẽ xóa vĩnh viễn và không thể hoàn tác!",
+                "Xác nhận xóa cuộc họp", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
+
+        if (confirm == JOptionPane.YES_OPTION) {
+            new Thread(() -> {
+                Request req = new Request(ActionType.DELETE_BOOKING, currentUser.getId(), String.valueOf(bookingId));
+                Response res = client.sendRequest(req);
+                SwingUtilities.invokeLater(() -> {
+                    if (res != null && res.isSuccess()) {
+                        JOptionPane.showMessageDialog(this, "Đã xóa cuộc họp thành công!", "Thành công", JOptionPane.INFORMATION_MESSAGE);
+                        loadMyBookings();
+                        loadBookingsByDate();
+                        loadDepartmentStats();
+                    } else {
+                        String msg = res != null ? res.getMessage() : "Lỗi khi xóa cuộc họp!";
+                        JOptionPane.showMessageDialog(this, msg, "Lỗi", JOptionPane.ERROR_MESSAGE);
+                    }
+                });
+            }).start();
+        }
+    }
+
+    private JPanel createDepartmentStatsPanel() {
+        JPanel panel = new JPanel(new BorderLayout(0, 8));
+        panel.setBackground(CARD_BG);
+        panel.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(BORDER_WARM, 1),
+                new EmptyBorder(10, 12, 10, 12)
+        ));
+
+        JPanel header = new JPanel(new BorderLayout(8, 0));
+        header.setOpaque(false);
+
+        JLabel lblTitle = new JLabel("📊 Thống Kê Họp Theo Phòng Ban");
+        lblTitle.setFont(new Font("Segoe UI", Font.BOLD, 13));
+        lblTitle.setForeground(ACCENT_FOREST);
+
+        JPanel monthSelectPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 4, 0));
+        monthSelectPanel.setOpaque(false);
+
+        JLabel lblMonth = new JLabel("Tháng:");
+        lblMonth.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        lblMonth.setForeground(TEXT_SECONDARY);
+        monthSelectPanel.add(lblMonth);
+
+        cboStatsMonth = new JComboBox<>();
+        cboStatsMonth.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        cboStatsMonth.setBackground(INPUT_BG);
+        cboStatsMonth.setForeground(TEXT_PRIMARY);
+
+        LocalDate today = LocalDate.now();
+        for (int i = -3; i <= 3; i++) {
+            LocalDate m = today.plusMonths(i);
+            String item = String.format("%02d/%d", m.getMonthValue(), m.getYear());
+            cboStatsMonth.addItem(item);
+        }
+        String currentMonthItem = String.format("%02d/%d", today.getMonthValue(), today.getYear());
+        cboStatsMonth.setSelectedItem(currentMonthItem);
+
+        cboStatsMonth.addActionListener(e -> loadDepartmentStats());
+        monthSelectPanel.add(cboStatsMonth);
+
+        JButton btnRefreshStats = new JButton("Tải lại");
+        btnRefreshStats.setFont(new Font("Segoe UI", Font.PLAIN, 11));
+        btnRefreshStats.setBackground(INPUT_BG);
+        btnRefreshStats.setForeground(TEXT_PRIMARY);
+        btnRefreshStats.setFocusPainted(false);
+        btnRefreshStats.addActionListener(e -> loadDepartmentStats());
+        monthSelectPanel.add(btnRefreshStats);
+
+        header.add(lblTitle, BorderLayout.WEST);
+        header.add(monthSelectPanel, BorderLayout.EAST);
+        panel.add(header, BorderLayout.NORTH);
+
+        String[] cols = {"Phòng ban", "Số cuộc họp", "Tỷ lệ"};
+        deptStatsTableModel = new DefaultTableModel(cols, 0) {
+            @Override
+            public boolean isCellEditable(int row, int col) { return false; }
+        };
+        JTable tblDeptStats = createStyledTable(deptStatsTableModel);
+        tblDeptStats.setRowHeight(28);
+        JScrollPane scroll = new JScrollPane(tblDeptStats);
+        scroll.setBorder(BorderFactory.createLineBorder(BORDER_WARM, 1));
+        scroll.getViewport().setBackground(CARD_BG);
+        panel.add(scroll, BorderLayout.CENTER);
+
+        return panel;
+    }
+
+    private void loadDepartmentStats() {
+        if (cboStatsMonth == null || deptStatsTableModel == null) return;
+        String selectedMonth = (String) cboStatsMonth.getSelectedItem();
+        if (selectedMonth == null) return;
+
+        String dbMonth = selectedMonth;
+        if (selectedMonth.contains("/")) {
+            String[] p = selectedMonth.split("/");
+            if (p.length == 2) {
+                dbMonth = p[1] + "-" + p[0];
+            }
+        }
+
+        String finalDbMonth = dbMonth;
+        new Thread(() -> {
+            Request req = new Request(ActionType.GET_DEPARTMENT_STATS, currentUser.getId(), finalDbMonth);
+            Response res = client.sendRequest(req);
+            if (res != null && res.isSuccess()) {
+                Map<String, Integer> map = JsonUtil.fromJson(res.getData(), new TypeToken<Map<String, Integer>>() {}.getType());
+                SwingUtilities.invokeLater(() -> {
+                    deptStatsTableModel.setRowCount(0);
+                    if (map != null && !map.isEmpty()) {
+                        int total = map.values().stream().mapToInt(Integer::intValue).sum();
+                        for (Map.Entry<String, Integer> entry : map.entrySet()) {
+                            int count = entry.getValue();
+                            double pct = total > 0 ? (count * 100.0 / total) : 0.0;
+                            String pctStr = String.format("%.1f%%", pct);
+                            deptStatsTableModel.addRow(new Object[]{
+                                    entry.getKey(),
+                                    count + " cuộc họp",
+                                    pctStr
+                            });
+                        }
+                    } else {
+                        deptStatsTableModel.addRow(new Object[]{"(Chưa có cuộc họp nào trong tháng)", "0", "0%"});
+                    }
+                });
+            }
+        }).start();
     }
 
     private void openUserProfileDialog() {
@@ -2050,9 +2391,91 @@ public class MainDashboard extends JFrame {
 
     private void loadChatHistory() {
         if (pnlChatMessages == null) return;
+        currentChatMessages.clear();
+        hasMoreOlderMessages = true;
         pnlChatMessages.removeAll();
 
-        // Banner đầu hội thoại
+        pnlChatMessages.add(createChatWelcomeBanner());
+        pnlChatMessages.add(Box.createVerticalStrut(10));
+
+        btnLoadMoreChat = createLoadMoreChatButton();
+        pnlChatMessages.add(btnLoadMoreChat);
+        pnlChatMessages.add(Box.createVerticalStrut(10));
+        pnlChatMessages.revalidate();
+        pnlChatMessages.repaint();
+
+        fetchChatMessages(0, 40, false);
+    }
+
+    private void fetchChatMessages(int beforeId, int limit, boolean keepScrollPosition) {
+        new Thread(() -> {
+            Map<String, Object> reqData = new HashMap<>();
+            if (isPublicChatSelected) {
+                reqData.put("type", "PUBLIC");
+            } else {
+                if (selectedChatUser == null) return;
+                reqData.put("type", "PRIVATE");
+                reqData.put("targetUserId", selectedChatUser.getId());
+            }
+            if (beforeId > 0) {
+                reqData.put("beforeId", beforeId);
+            }
+            reqData.put("limit", limit);
+
+            Request req = new Request(ActionType.GET_CHAT_HISTORY, JsonUtil.toJson(reqData), currentUser.getId());
+            Response res = client.sendRequest(req);
+            if (res != null && res.isSuccess()) {
+                List<ChatMessage> list = JsonUtil.fromJson(res.getData(), new TypeToken<List<ChatMessage>>() {}.getType());
+                SwingUtilities.invokeLater(() -> {
+                    if (list == null || list.isEmpty()) {
+                        hasMoreOlderMessages = false;
+                        if (btnLoadMoreChat != null) btnLoadMoreChat.setVisible(false);
+                    } else {
+                        if (list.size() < limit) {
+                            hasMoreOlderMessages = false;
+                            if (btnLoadMoreChat != null) btnLoadMoreChat.setVisible(false);
+                        }
+                        if (beforeId > 0) {
+                            currentChatMessages.addAll(0, list);
+                        } else {
+                            currentChatMessages.addAll(list);
+                        }
+                    }
+                    renderAllChatMessages(keepScrollPosition);
+                });
+            } else {
+                SwingUtilities.invokeLater(() -> {
+                    if (btnLoadMoreChat != null) {
+                        btnLoadMoreChat.setEnabled(true);
+                        btnLoadMoreChat.setText("📜 Tải tin nhắn cũ hơn...");
+                    }
+                });
+            }
+        }).start();
+    }
+
+    private JButton createLoadMoreChatButton() {
+        JButton btn = new JButton("📜 Tải tin nhắn cũ hơn...");
+        btn.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        btn.setForeground(ACCENT_TERRA);
+        btn.setBackground(new Color(254, 243, 235));
+        btn.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(new Color(254, 215, 195), 1),
+                new EmptyBorder(6, 14, 6, 14)
+        ));
+        btn.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        btn.setFocusPainted(false);
+        btn.setAlignmentX(Component.CENTER_ALIGNMENT);
+        btn.addActionListener(e -> {
+            int beforeId = currentChatMessages.isEmpty() ? 0 : currentChatMessages.get(0).getId();
+            btn.setText("Đang tải tin nhắn cũ...");
+            btn.setEnabled(false);
+            fetchChatMessages(beforeId, 40, true);
+        });
+        return btn;
+    }
+
+    private JPanel createChatWelcomeBanner() {
         JPanel welcomeCard = new JPanel(new FlowLayout(FlowLayout.CENTER));
         welcomeCard.setOpaque(false);
         String bannerText;
@@ -2069,40 +2492,7 @@ public class MainDashboard extends JFrame {
         }
         lblWelcome.setFont(new Font("Segoe UI", Font.PLAIN, 12));
         welcomeCard.add(lblWelcome);
-        pnlChatMessages.add(welcomeCard);
-        pnlChatMessages.add(Box.createVerticalStrut(14));
-        pnlChatMessages.revalidate();
-        pnlChatMessages.repaint();
-
-        new Thread(() -> {
-            Map<String, Object> reqData = new HashMap<>();
-            if (isPublicChatSelected) {
-                reqData.put("type", "PUBLIC");
-            } else {
-                if (selectedChatUser == null) return;
-                reqData.put("type", "PRIVATE");
-                reqData.put("targetUserId", selectedChatUser.getId());
-            }
-
-            Request req = new Request(ActionType.GET_CHAT_HISTORY, JsonUtil.toJson(reqData), currentUser.getId());
-            Response res = client.sendRequest(req);
-            if (res != null && res.isSuccess()) {
-                List<ChatMessage> list = JsonUtil.fromJson(res.getData(), new TypeToken<List<ChatMessage>>() {}.getType());
-                if (list != null) {
-                    SwingUtilities.invokeLater(() -> {
-                        for (ChatMessage msg : list) {
-                            appendChatMessage(msg, false);
-                        }
-                        SwingUtilities.invokeLater(() -> {
-                            if (scrollChat != null) {
-                                JScrollBar vertical = scrollChat.getVerticalScrollBar();
-                                vertical.setValue(vertical.getMaximum());
-                            }
-                        });
-                    });
-                }
-            }
-        }).start();
+        return welcomeCard;
     }
 
     private void openChatWithColleague(String hostName, String prefix) {
@@ -2176,10 +2566,148 @@ public class MainDashboard extends JFrame {
         }).start();
     }
 
-    private void appendChatMessage(com.meeting.common.model.ChatMessage chat, boolean autoScroll) {
+    private String extractDateFromTimestamp(String timestamp) {
+        if (timestamp == null || timestamp.trim().isEmpty()) return "Hôm nay";
+        String[] parts = timestamp.trim().split(" ");
+        String datePart = parts.length > 1 ? parts[1] : parts[0];
+        String today = LocalDate.now().format(DateTimeFormatter.ofPattern("dd/MM"));
+        String yesterday = LocalDate.now().minusDays(1).format(DateTimeFormatter.ofPattern("dd/MM"));
+        if (datePart.equals(today)) {
+            return "Hôm nay (" + datePart + ")";
+        } else if (datePart.equals(yesterday)) {
+            return "Hôm qua (" + datePart + ")";
+        } else {
+            return "Ngày " + datePart;
+        }
+    }
+
+    private JPanel createDateSeparator(String dateText) {
+        JPanel sep = new JPanel(new FlowLayout(FlowLayout.CENTER));
+        sep.setOpaque(false);
+        sep.setMaximumSize(new Dimension(880, 28));
+
+        JLabel lbl = new JLabel("  ──  " + dateText + "  ──  ");
+        lbl.setFont(new Font("Segoe UI", Font.BOLD, 11));
+        lbl.setForeground(new Color(120, 113, 108));
+        lbl.setOpaque(true);
+        lbl.setBackground(new Color(245, 241, 234));
+        lbl.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(BORDER_WARM, 1),
+                new EmptyBorder(3, 12, 3, 12)
+        ));
+
+        sep.add(lbl);
+        return sep;
+    }
+
+    private JPanel createChatMessageRow(ChatMessage chat) {
+        boolean isMe = currentUser != null && currentUser.getId() == chat.getSenderId();
+
+        JPanel rowPanel = new JPanel(new FlowLayout(isMe ? FlowLayout.RIGHT : FlowLayout.LEFT, 0, 0));
+        rowPanel.setOpaque(false);
+        rowPanel.setMaximumSize(new Dimension(880, 110));
+        rowPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
+
+        JPanel bubbleCard = new JPanel(new BorderLayout(4, 3));
+        bubbleCard.setOpaque(false);
+
+        // Header dòng tin
+        JPanel headerLine = new JPanel(new FlowLayout(isMe ? FlowLayout.RIGHT : FlowLayout.LEFT, 6, 0));
+        headerLine.setOpaque(false);
+
+        String senderTitle = isMe ? "Bạn" : chat.getSenderName() + " (" + (chat.getDepartment() != null ? chat.getDepartment() : "Công ty") + ")";
+        JLabel lblSender = new JLabel(senderTitle);
+        lblSender.setFont(new Font("Segoe UI", Font.BOLD, 11));
+        lblSender.setForeground(isMe ? ACCENT_TERRA : ACCENT_FOREST);
+
+        JLabel lblTime = new JLabel(chat.getTimestamp() != null ? chat.getTimestamp() : "");
+        lblTime.setFont(new Font("Segoe UI", Font.PLAIN, 10));
+        lblTime.setForeground(TEXT_SECONDARY);
+
+        if (isMe) {
+            headerLine.add(lblTime);
+            headerLine.add(lblSender);
+        } else {
+            headerLine.add(lblSender);
+            headerLine.add(lblTime);
+        }
+
+        // Message Bubble
+        JPanel bubble = new JPanel(new BorderLayout());
+        bubble.setBackground(isMe ? new Color(254, 243, 235) : new Color(250, 249, 246));
+        bubble.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(isMe ? new Color(254, 215, 195) : BORDER_WARM, 1),
+                new EmptyBorder(8, 12, 8, 12)
+        ));
+
+        JLabel lblMsg = new JLabel("<html><body style='width: 480px; font-family: Segoe UI;'>" + escapeHtml(chat.getContent()) + "</body></html>");
+        lblMsg.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        lblMsg.setForeground(TEXT_PRIMARY);
+        bubble.add(lblMsg, BorderLayout.CENTER);
+
+        bubbleCard.add(headerLine, BorderLayout.NORTH);
+        bubbleCard.add(bubble, BorderLayout.CENTER);
+        rowPanel.add(bubbleCard);
+
+        return rowPanel;
+    }
+
+    private void renderAllChatMessages(boolean keepScrollPosition) {
         if (pnlChatMessages == null) return;
+
+        int prevHeight = pnlChatMessages.getHeight();
+        int prevScroll = scrollChat != null ? scrollChat.getVerticalScrollBar().getValue() : 0;
+
+        pnlChatMessages.removeAll();
+
+        // 1. Banner
+        pnlChatMessages.add(createChatWelcomeBanner());
+        pnlChatMessages.add(Box.createVerticalStrut(10));
+
+        // 2. Button tải tin nhắn cũ hơn
+        if (hasMoreOlderMessages) {
+            if (btnLoadMoreChat == null) {
+                btnLoadMoreChat = createLoadMoreChatButton();
+            }
+            btnLoadMoreChat.setText("📜 Tải tin nhắn cũ hơn...");
+            btnLoadMoreChat.setEnabled(true);
+            btnLoadMoreChat.setVisible(true);
+            pnlChatMessages.add(btnLoadMoreChat);
+            pnlChatMessages.add(Box.createVerticalStrut(10));
+        }
+
+        // 3. Render tin nhắn kèm date separators
+        String lastDate = "";
+        for (ChatMessage msg : currentChatMessages) {
+            String msgDate = extractDateFromTimestamp(msg.getTimestamp());
+            if (!msgDate.equals(lastDate)) {
+                lastDate = msgDate;
+                pnlChatMessages.add(createDateSeparator(msgDate));
+                pnlChatMessages.add(Box.createVerticalStrut(8));
+            }
+            pnlChatMessages.add(createChatMessageRow(msg));
+            pnlChatMessages.add(Box.createVerticalStrut(8));
+        }
+
+        pnlChatMessages.revalidate();
+        pnlChatMessages.repaint();
+
         SwingUtilities.invokeLater(() -> {
-            // Kiểm tra tin nhắn có thuộc về hội thoại đang mở hay không
+            if (scrollChat != null) {
+                JScrollBar v = scrollChat.getVerticalScrollBar();
+                if (keepScrollPosition) {
+                    int newHeight = pnlChatMessages.getHeight();
+                    v.setValue(prevScroll + (newHeight - prevHeight));
+                } else {
+                    v.setValue(v.getMaximum());
+                }
+            }
+        });
+    }
+
+    private void appendChatMessage(com.meeting.common.model.ChatMessage chat, boolean autoScroll) {
+        if (chat == null || pnlChatMessages == null) return;
+        SwingUtilities.invokeLater(() -> {
             boolean matches = false;
             if (isPublicChatSelected) {
                 if (!chat.isPrivate()) {
@@ -2195,68 +2723,28 @@ public class MainDashboard extends JFrame {
             }
 
             if (!matches) {
-                return; // Tin nhắn thuộc cuộc trò chuyện khác
+                return;
             }
 
-            boolean isMe = currentUser != null && currentUser.getId() == chat.getSenderId();
+            String msgDate = extractDateFromTimestamp(chat.getTimestamp());
+            String lastDate = currentChatMessages.isEmpty() ? "" : extractDateFromTimestamp(currentChatMessages.get(currentChatMessages.size() - 1).getTimestamp());
 
-            JPanel rowPanel = new JPanel(new FlowLayout(isMe ? FlowLayout.RIGHT : FlowLayout.LEFT, 0, 0));
-            rowPanel.setOpaque(false);
-            rowPanel.setMaximumSize(new Dimension(880, 110));
-            rowPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
+            currentChatMessages.add(chat);
 
-            JPanel bubbleCard = new JPanel(new BorderLayout(4, 3));
-            bubbleCard.setOpaque(false);
-
-            // Header dòng tin
-            JPanel headerLine = new JPanel(new FlowLayout(isMe ? FlowLayout.RIGHT : FlowLayout.LEFT, 6, 0));
-            headerLine.setOpaque(false);
-
-            String senderTitle = isMe ? "Bạn" : chat.getSenderName() + " (" + (chat.getDepartment() != null ? chat.getDepartment() : "Công ty") + ")";
-            JLabel lblSender = new JLabel(senderTitle);
-            lblSender.setFont(new Font("Segoe UI", Font.BOLD, 11));
-            lblSender.setForeground(isMe ? ACCENT_TERRA : ACCENT_FOREST);
-
-            JLabel lblTime = new JLabel(chat.getTimestamp() != null ? chat.getTimestamp() : "");
-            lblTime.setFont(new Font("Segoe UI", Font.PLAIN, 10));
-            lblTime.setForeground(TEXT_SECONDARY);
-
-            if (isMe) {
-                headerLine.add(lblTime);
-                headerLine.add(lblSender);
-            } else {
-                headerLine.add(lblSender);
-                headerLine.add(lblTime);
+            if (!msgDate.equals(lastDate)) {
+                pnlChatMessages.add(createDateSeparator(msgDate));
+                pnlChatMessages.add(Box.createVerticalStrut(8));
             }
 
-            // Message Bubble
-            JPanel bubble = new JPanel(new BorderLayout());
-            bubble.setBackground(isMe ? new Color(254, 243, 235) : new Color(250, 249, 246));
-            bubble.setBorder(BorderFactory.createCompoundBorder(
-                    BorderFactory.createLineBorder(isMe ? new Color(254, 215, 195) : BORDER_WARM, 1),
-                    new EmptyBorder(8, 12, 8, 12)
-            ));
-
-            JLabel lblMsg = new JLabel("<html><body style='width: 480px; font-family: Segoe UI;'>" + escapeHtml(chat.getContent()) + "</body></html>");
-            lblMsg.setFont(new Font("Segoe UI", Font.PLAIN, 13));
-            lblMsg.setForeground(TEXT_PRIMARY);
-            bubble.add(lblMsg, BorderLayout.CENTER);
-
-            bubbleCard.add(headerLine, BorderLayout.NORTH);
-            bubbleCard.add(bubble, BorderLayout.CENTER);
-            rowPanel.add(bubbleCard);
-
-            pnlChatMessages.add(rowPanel);
+            pnlChatMessages.add(createChatMessageRow(chat));
             pnlChatMessages.add(Box.createVerticalStrut(8));
             pnlChatMessages.revalidate();
             pnlChatMessages.repaint();
 
-            if (autoScroll) {
+            if (autoScroll && scrollChat != null) {
                 SwingUtilities.invokeLater(() -> {
-                    if (scrollChat != null) {
-                        JScrollBar vertical = scrollChat.getVerticalScrollBar();
-                        vertical.setValue(vertical.getMaximum());
-                    }
+                    JScrollBar vertical = scrollChat.getVerticalScrollBar();
+                    vertical.setValue(vertical.getMaximum());
                 });
             }
         });

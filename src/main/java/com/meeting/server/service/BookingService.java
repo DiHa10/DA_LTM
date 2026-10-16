@@ -32,11 +32,19 @@ public class BookingService {
     }
 
     public List<com.meeting.common.model.ChatMessage> getPublicChatMessages(int limit) {
-        return chatMessageDao.getPublicMessages(limit);
+        return chatMessageDao.getPublicMessages(limit, 0);
+    }
+
+    public List<com.meeting.common.model.ChatMessage> getPublicChatMessages(int limit, int beforeId) {
+        return chatMessageDao.getPublicMessages(limit, beforeId);
     }
 
     public List<com.meeting.common.model.ChatMessage> getPrivateChatMessages(int u1, int u2, int limit) {
-        return chatMessageDao.getPrivateMessages(u1, u2, limit);
+        return chatMessageDao.getPrivateMessages(u1, u2, limit, 0);
+    }
+
+    public List<com.meeting.common.model.ChatMessage> getPrivateChatMessages(int u1, int u2, int limit, int beforeId) {
+        return chatMessageDao.getPrivateMessages(u1, u2, limit, beforeId);
     }
 
     public boolean markChatAsRead(int senderId, int receiverId) {
@@ -86,6 +94,10 @@ public class BookingService {
 
     public List<Booking> getBookingsByDate(String date) {
         return bookingDao.getBookingsByDate(date);
+    }
+
+    public List<Booking> getBookingsByDateRange(String fromDate, String toDate) {
+        return bookingDao.getBookingsByDateRange(fromDate, toDate);
     }
 
     public List<Booking> getBookingsByUser(int userId) {
@@ -235,6 +247,90 @@ public class BookingService {
                 return Response.error("Lỗi tính toán thời gian gia hạn: " + e.getMessage());
             }
         }
+    }
+
+    public Response updateBooking(Booking updated, int userId, boolean isAdmin) {
+        synchronized (bookingLock) {
+            Booking existing = bookingDao.getBookingById(updated.getId());
+            if (existing == null) {
+                return Response.error("Lịch họp không tồn tại!");
+            }
+            if (!isAdmin && existing.getUserId() != userId) {
+                return Response.error("Bạn không có quyền chỉnh sửa cuộc họp này!");
+            }
+            if (!"CONFIRMED".equalsIgnoreCase(existing.getStatus())) {
+                return Response.error("Chỉ có thể chỉnh sửa cuộc họp đang có trạng thái ĐÃ XÁC NHẬN!");
+            }
+
+            // Kiểm tra phòng họp
+            Room room = roomDao.getRoomById(updated.getRoomId());
+            if (room == null) {
+                return Response.error("Phòng họp không tồn tại trên hệ thống!");
+            }
+            if (!room.isAvailable()) {
+                return Response.error("Phòng '" + room.getName() + "' hiện đang bảo trì hoặc tạm ngưng sử dụng!");
+            }
+
+            // Kiểm tra trùng lịch (loại trừ chính bản ghi hiện tại)
+            Booking conflict = bookingDao.findOverlappingBookingExcept(
+                    updated.getRoomId(),
+                    com.meeting.common.util.DateUtil.toDbDate(updated.getBookingDate()),
+                    updated.getStartTime(),
+                    updated.getEndTime(),
+                    updated.getId()
+            );
+
+            if (conflict != null) {
+                String conflictMsg = String.format(
+                        "TRÙNG LỊCH: Khung giờ %s - %s ngày %s tại '%s' đã được đặt bởi %s (%s)! Mục đích: '%s'.",
+                        conflict.getStartTime(),
+                        conflict.getEndTime(),
+                        com.meeting.common.util.DateUtil.toUiDate(conflict.getBookingDate()),
+                        room.getName(),
+                        conflict.getUserFullName(),
+                        conflict.getDepartment(),
+                        conflict.getPurpose()
+                );
+                System.out.println("[SYNCHRONIZED - CHẶN SỬA TRÙNG LỊCH] " + conflictMsg);
+                return Response.conflict(conflictMsg);
+            }
+
+            boolean success = bookingDao.updateBooking(updated);
+            if (success) {
+                updated.setRoomName(room.getName());
+                User user = userDao.getUserById(existing.getUserId());
+                if (user != null) {
+                    updated.setUserFullName(user.getFullName());
+                    updated.setDepartment(user.getDepartment());
+                }
+                return Response.success("Cập nhật cuộc họp thành công!", ActionType.UPDATE_BOOKING, JsonUtil.toJson(updated));
+            } else {
+                return Response.error("Lỗi CSDL khi cập nhật cuộc họp!");
+            }
+        }
+    }
+
+    public Response deleteBooking(int bookingId, int userId, boolean isAdmin) {
+        synchronized (bookingLock) {
+            Booking existing = bookingDao.getBookingById(bookingId);
+            if (existing == null) {
+                return Response.error("Lịch họp không tồn tại!");
+            }
+            if (!isAdmin && existing.getUserId() != userId) {
+                return Response.error("Bạn không có quyền xóa cuộc họp này!");
+            }
+
+            boolean success = bookingDao.deleteBooking(bookingId, userId, isAdmin);
+            if (success) {
+                return Response.success("Xóa cuộc họp thành công!");
+            } else {
+                return Response.error("Không thể xóa cuộc họp!");
+            }
+        }
+    }
+
+    public java.util.Map<String, Integer> getDepartmentStats(String yearMonth) {
+        return bookingDao.getDepartmentBookingCount(yearMonth);
     }
 
     // ==========================================

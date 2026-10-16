@@ -47,16 +47,31 @@ public class ChatMessageDao {
     }
 
     public List<ChatMessage> getPublicMessages(int limit) {
+        return getPublicMessages(limit, 0);
+    }
+
+    public List<ChatMessage> getPublicMessages(int limit, int beforeId) {
         List<ChatMessage> list = new ArrayList<>();
-        String sql = """
+        String sql = beforeId > 0 ?
+            """
+            SELECT * FROM chat_messages
+            WHERE type = 'PUBLIC' AND id < ?
+            ORDER BY id DESC
+            LIMIT ?
+            """ :
+            """
             SELECT * FROM chat_messages
             WHERE type = 'PUBLIC'
             ORDER BY id DESC
             LIMIT ?
-        """;
+            """;
         try (Connection conn = DatabaseManager.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setInt(1, limit > 0 ? limit : 60);
+            int idx = 1;
+            if (beforeId > 0) {
+                ps.setInt(idx++, beforeId);
+            }
+            ps.setInt(idx, limit > 0 ? limit : 60);
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
                     list.add(extract(rs));
@@ -70,21 +85,38 @@ public class ChatMessageDao {
     }
 
     public List<ChatMessage> getPrivateMessages(int user1Id, int user2Id, int limit) {
+        return getPrivateMessages(user1Id, user2Id, limit, 0);
+    }
+
+    public List<ChatMessage> getPrivateMessages(int user1Id, int user2Id, int limit, int beforeId) {
         List<ChatMessage> list = new ArrayList<>();
-        String sql = """
+        String sql = beforeId > 0 ?
+            """
+            SELECT * FROM chat_messages
+            WHERE type = 'PRIVATE'
+              AND ((sender_id = ? AND receiver_id = ?) OR (sender_id = ? AND receiver_id = ?))
+              AND id < ?
+            ORDER BY id DESC
+            LIMIT ?
+            """ :
+            """
             SELECT * FROM chat_messages
             WHERE type = 'PRIVATE'
               AND ((sender_id = ? AND receiver_id = ?) OR (sender_id = ? AND receiver_id = ?))
             ORDER BY id DESC
             LIMIT ?
-        """;
+            """;
         try (Connection conn = DatabaseManager.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setInt(1, user1Id);
             ps.setInt(2, user2Id);
             ps.setInt(3, user2Id);
             ps.setInt(4, user1Id);
-            ps.setInt(5, limit > 0 ? limit : 80);
+            int idx = 5;
+            if (beforeId > 0) {
+                ps.setInt(idx++, beforeId);
+            }
+            ps.setInt(idx, limit > 0 ? limit : 80);
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
                     list.add(extract(rs));

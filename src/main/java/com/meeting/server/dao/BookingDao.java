@@ -6,6 +6,8 @@ import com.meeting.server.db.DatabaseManager;
 import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.LinkedHashMap;
 
 public class BookingDao {
 
@@ -22,6 +24,31 @@ public class BookingDao {
         try (Connection conn = DatabaseManager.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setString(1, com.meeting.common.util.DateUtil.toDbDate(date));
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    list.add(extractBooking(rs));
+                }
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return list;
+    }
+
+    public List<Booking> getBookingsByDateRange(String fromDate, String toDate) {
+        List<Booking> list = new ArrayList<>();
+        String sql = """
+            SELECT b.*, r.name as room_name, u.full_name as user_name, u.department
+            FROM bookings b
+            JOIN rooms r ON b.room_id = r.id
+            JOIN users u ON b.user_id = u.id
+            WHERE b.booking_date >= ? AND b.booking_date <= ? AND b.status = 'CONFIRMED'
+            ORDER BY b.booking_date ASC, b.start_time ASC
+        """;
+        try (Connection conn = DatabaseManager.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, com.meeting.common.util.DateUtil.toDbDate(fromDate));
+            ps.setString(2, com.meeting.common.util.DateUtil.toDbDate(toDate));
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
                     list.add(extractBooking(rs));
@@ -260,6 +287,81 @@ public class BookingDao {
             e.printStackTrace();
         }
         return null;
+    }
+
+    public boolean updateBooking(Booking booking) {
+        String sql = """
+            UPDATE bookings 
+            SET room_id = ?, booking_date = ?, start_time = ?, end_time = ?, purpose = ?
+            WHERE id = ?
+        """;
+        try (Connection conn = DatabaseManager.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, booking.getRoomId());
+            ps.setString(2, com.meeting.common.util.DateUtil.toDbDate(booking.getBookingDate()));
+            ps.setString(3, booking.getStartTime());
+            ps.setString(4, booking.getEndTime());
+            ps.setString(5, booking.getPurpose());
+            ps.setInt(6, booking.getId());
+            return ps.executeUpdate() > 0;
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return false;
+    }
+
+    public boolean deleteBooking(int bookingId, int userId, boolean isAdmin) {
+        String sql = isAdmin ?
+                "DELETE FROM bookings WHERE id = ?" :
+                "DELETE FROM bookings WHERE id = ? AND user_id = ?";
+        try (Connection conn = DatabaseManager.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, bookingId);
+            if (!isAdmin) {
+                ps.setInt(2, userId);
+            }
+            return ps.executeUpdate() > 0;
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return false;
+    }
+
+    public Map<String, Integer> getDepartmentBookingCount(String yearMonth) {
+        Map<String, Integer> map = new LinkedHashMap<>();
+        String normalizedMonth = yearMonth;
+        if (yearMonth != null && yearMonth.contains("-")) {
+            String[] p = yearMonth.split("-");
+            if (p.length == 2 && p[0].length() <= 2 && p[1].length() == 4) {
+                try {
+                    normalizedMonth = p[1] + "-" + String.format("%02d", Integer.parseInt(p[0]));
+                } catch (Exception ignored) {}
+            }
+        }
+        String sql = """
+            SELECT u.department, COUNT(*) as cnt
+            FROM bookings b
+            JOIN users u ON b.user_id = u.id
+            WHERE b.booking_date LIKE ? AND b.status = 'CONFIRMED'
+            GROUP BY u.department
+            ORDER BY cnt DESC
+        """;
+        try (Connection conn = DatabaseManager.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, (normalizedMonth != null ? normalizedMonth : "") + "%");
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    String dept = rs.getString("department");
+                    if (dept == null || dept.trim().isEmpty()) {
+                        dept = "Chưa phân phòng";
+                    }
+                    map.put(dept, rs.getInt("cnt"));
+                }
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return map;
     }
 
     private Booking extractBooking(ResultSet rs) throws SQLException {
